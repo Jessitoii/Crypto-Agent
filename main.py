@@ -9,6 +9,13 @@ from exchange import PaperExchange
 from brain import AgentBrain
 from price_buffer import PriceBuffer
 from utils import get_top_pairs
+from binance_client import BinanceExecutionEngine # Dosya adın neyse
+from data_collector import TrainingDataCollector
+
+# AYARLAR
+REAL_TRADING_ENABLED = True # <--- DİKKAT DÜĞMESİ! False yaparsan sadece simülasyon çalışır.
+
+# Global Nesne
 # ---------------------------------------------------------
 
 # İzlenecek Telegram kanallarının/gruplarının ID'leri (veya kullanıcı adları)
@@ -122,6 +129,8 @@ app_state = State()
 market_memory = defaultdict(PriceBuffer)
 exchange = PaperExchange(STARTING_BALANCE)
 brain = AgentBrain(model='crypto-agent:gemma') 
+real_exchange = BinanceExecutionEngine(BINANCE_API_KEY, BINANCE_API_SECRET)
+collector = TrainingDataCollector()
 
 # ---------------------------------------------------------
 # UI FONKSİYONLARI (GÜVENLİ HALE GETİRİLDİ)
@@ -223,6 +232,12 @@ def index():
 # ---------------------------------------------------------
 async def start_background_tasks():
     log_ui("Sistem Başlatılıyor...")
+    
+    # Gerçek borsa bağlantısı
+    if REAL_TRADING_ENABLED:
+        log_ui("⚠️ GERÇEK TİCARET MODU AKTİF! API'ye bağlanılıyor...", "warning")
+        await real_exchange.connect()
+    
     asyncio.create_task(websocket_loop())
     asyncio.create_task(telegram_loop())
 
@@ -245,6 +260,9 @@ async def websocket_loop():
                             
                             market_memory[pair].add(price, ts)
                             exchange.check_positions(pair, price)
+                            
+                        current_prices_dict = {p: market_memory[p].current_price for p in TARGET_PAIRS}
+                        await collector.check_outcomes(current_prices_dict, log_ui)
                 except Exception as e:
                     log_ui(f"WS Okuma Hatası: {e}", "error")
         except Exception as e:
@@ -264,22 +282,48 @@ async def telegram_loop():
         
         for pair in TARGET_PAIRS:
             if pair.replace('usdt','') in msg.lower():
-                log_ui(f"Haber: {msg}", "warning")
+                log_ui(f"Haber: {pair.upper()}", "warning")
                 
                 stats = market_memory[pair]
-                # Eğer fiyat yoksa (Websocket henüz çekmediyse) analiz yapma
-                if stats.current_price == 0:
-                    log_ui(f"Fiyat verisi yok, atlanıyor...", "error")
-                    continue
+                if stats.current_price == 0: continue
 
+                # Analiz
                 dec = await brain.analyze(msg, pair, stats.current_price, stats.get_change(60))
                 
+                # Data Collector
+                collector.log_decision(msg, pair, stats.current_price, stats.get_change(60), dec, log_ui)
+
                 if dec['confidence'] > 75 and dec['action'] in ['LONG', 'SHORT']:
-                    exchange.open_position(pair, dec['action'], stats.current_price, FIXED_TRADE_AMOUNT, LEVERAGE, dec['tp_pct'], dec['sl_pct'])
+                    validity = dec.get('validity_minutes', 15)
+                    
+                    # 1. Simülasyonu Güncelle (Ekranda görmek için)
+                    exchange.open_position(
+                        symbol=pair, 
+                        side=dec['action'], 
+                        price=stats.current_price, 
+                        amount_usdt=FIXED_TRADE_AMOUNT, 
+                        leverage=LEVERAGE, 
+                        tp_pct=dec['tp_pct'], 
+                        sl_pct=dec['sl_pct'],
+                        validity_minutes=validity
+                    )
+
+                    # 2. GERÇEK İŞLEM (PARA BURADA GİDER)
+                    if REAL_TRADING_ENABLED:
+                        log_ui(f"🚀 API EMRİ GÖNDERİLİYOR: {pair.upper()}", "error") # Kırmızı uyarı
+                        
+                        # Bu işlemi arka plana atıyoruz ki Telegram döngüsünü kilitlemesin
+                        asyncio.create_task(real_exchange.execute_trade(
+                            symbol=pair,
+                            side=dec['action'],
+                            amount_usdt=FIXED_TRADE_AMOUNT, # Gerçek Para Miktarı
+                            leverage=LEVERAGE,
+                            tp_pct=dec['tp_pct'],
+                            sl_pct=dec['sl_pct']
+                        ))
                 else:
                     log_ui(f"Karar: HOLD (Güven: %{dec['confidence']})", "warning")
                 break
-
 # UYGULAMAYI BAŞLAT
 app.on_startup(start_background_tasks)
 ui.run(title="Crypto AI Agent", dark=True, port=8080, reload=False)
