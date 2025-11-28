@@ -1,0 +1,15 @@
+
+######################
+Time : 2025-11-28 14:18:01.168315
+🔵 POZİSYON AÇILDI: BTCUSDT LONG | Giriş: 91150.01 | Top Point : 4.5 | Stop Loss : 0.5 | VM : 5 minutes
+Kaynağı: MANUAL
+News: 1,797 #BTC (156,868,129 USD) transferred from Wrapped BTC to unknown wallet
+Decision: {'action': 'LONG', 'confidence': 95, 'tp_pct': 4.5, 'sl_pct': 0.5, 'validity_minutes': 5}
+######################
+
+######################
+Time : 2025-11-28 14:38:40.224124
+🔵 POZİSYON AÇILDI: BTCUSDT LONG | Giriş: 91301.4 | Top Point : 2.5 | Stop Loss : 1.0 | VM : 15 minutes
+Src: MANUAL
+Reason: Mining upgrade news
+######################

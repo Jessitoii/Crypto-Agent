@@ -1,8 +1,6 @@
-import math
-import asyncio
 from binance import AsyncClient
 from binance.enums import *
-from nicegui import ui
+from binance.enums import FUTURE_ORDER_TYPE_TAKE_PROFIT_MARKET, FUTURE_ORDER_TYPE_STOP_MARKET
 
 class BinanceExecutionEngine:
     def __init__(self, api_key, api_secret, testnet=False):
@@ -119,7 +117,7 @@ class BinanceExecutionEngine:
             await self.client.futures_create_order(
                 symbol=symbol,
                 side=close_side,
-                type=ORDER_TYPE_STOP_MARKET,
+                type=FUTURE_ORDER_TYPE_STOP_MARKET,
                 stopPrice=sl_price,
                 closePosition=True # Tüm pozisyonu kapat
             )
@@ -129,7 +127,7 @@ class BinanceExecutionEngine:
             await self.client.futures_create_order(
                 symbol=symbol,
                 side=close_side,
-                type=ORDER_TYPE_TAKE_PROFIT_MARKET,
+                type=FUTURE_ORDER_TYPE_TAKE_PROFIT_MARKET,
                 stopPrice=tp_price,
                 closePosition=True
             )
