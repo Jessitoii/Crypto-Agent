@@ -10,8 +10,8 @@ from google.genai import types
 class AgentBrain:
     def __init__(self):
         # Ayarları .env'den çek
-        self.use_gemini = os.getenv("USE_GEMINI", "False").lower() == "true"
-        self.ollama_model = os.getenv("MODEL", "crypto-agent:gemma") # Fallback
+        self.use_gemini = False
+        self.ollama_model = "crypto-agent:gemma" # Fallback
         
         # ORTAK SYSTEM PROMPT (Hem Gemini hem Ollama için)
         self.system_instruction = """
@@ -134,7 +134,7 @@ class AgentBrain:
             else: # Ollama aktifse
                 res = await asyncio.to_thread(
                     ollama.chat, 
-                    model=self.model,
+                    model=self.ollama_model,
                     messages=[{'role': 'user', 'content': prompt}],
                     format='json', 
                 )
@@ -143,3 +143,47 @@ class AgentBrain:
         except Exception as e:
             print(f"[HATA] LLM Analizi: {e}")
             return {"action": "HOLD", "confidence": 0, "reason": "Error"}
+        
+    async def detect_symbol(self, news, available_pairs):
+        """
+        Regex başarısız olduğunda LLM'den sembol bulmasını ister.
+        """
+        # Sadece coin listesini string yap (USDT olmadan)
+        coins_str = ", ".join([p.replace('usdt', '').upper() for p in available_pairs])
+        
+        prompt = f"""
+        TASK: Identify the cryptocurrency symbol in this news.
+        NEWS: "{news}"
+        ALLOWED SYMBOLS: [{coins_str}]
+        
+        RULES:
+        1. If the news talks about "Satoshi" or "Bitcoin", return "BTC".
+        2. If news talks about "Ether", return "ETH".
+        3. Only return a symbol if it exists in ALLOWED SYMBOLS list.
+        4. If no specific coin is found, return null.
+        
+        JSON OUTPUT ONLY:
+        {{
+            "symbol": "BTC" | null
+        }}
+        """
+        try:
+            # Gemini veya Ollama kullanımı (Mevcut yapına göre)
+            if hasattr(self, 'gemini_client') and self.use_gemini:
+                response = await self.gemini_client.generate_content_async(prompt)
+                res_json = json.loads(response.text)
+            else:
+                res = await asyncio.to_thread(
+                    ollama.chat, 
+                    model=self.ollama_model,
+                    messages=[{'role': 'user', 'content': prompt}],
+                    format='json', 
+                    options={'temperature': 0.0} # Sıfır yaratıcılık
+                )
+                res_json = json.loads(res['message']['content'])
+            
+            return res_json.get('symbol')
+            
+        except Exception as e:
+            print(f"[HATA] Sembol Tespiti: {e}")
+            return None

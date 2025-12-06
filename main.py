@@ -338,7 +338,8 @@ async def process_news(msg, source="TELEGRAM"):
                 leverage=LEVERAGE,
                 tp_pct=dec['tp_pct'],
                 sl_pct=dec['sl_pct'],
-                validity_minutes=validity
+                validity=validity,
+                app_state=app_state
             )
             
             full_log = log + f'\nSrc: {source}\nReason: {dec.get("reason")}\nNews: {msg}\nConfidence: %{dec["confidence"]}\n'
@@ -365,49 +366,7 @@ async def process_news(msg, source="TELEGRAM"):
             log_txt(f"Pas Geçildi: {pair.upper()} {dec['action']} (Güven: %{dec['confidence']})\nHaber: {msg}", "trade_logs.txt")
 
 
-async def detect_symbol(self, news, available_pairs):
-        """
-        Regex başarısız olduğunda LLM'den sembol bulmasını ister.
-        """
-        # Sadece coin listesini string yap (USDT olmadan)
-        coins_str = ", ".join([p.replace('usdt', '').upper() for p in available_pairs])
-        
-        prompt = f"""
-        TASK: Identify the cryptocurrency symbol in this news.
-        NEWS: "{news}"
-        ALLOWED SYMBOLS: [{coins_str}]
-        
-        RULES:
-        1. If the news talks about "Satoshi" or "Bitcoin", return "BTC".
-        2. If news talks about "Ether", return "ETH".
-        3. Only return a symbol if it exists in ALLOWED SYMBOLS list.
-        4. If no specific coin is found, return null.
-        
-        JSON OUTPUT ONLY:
-        {{
-            "symbol": "BTC" | null
-        }}
-        """
-        try:
-            # Gemini veya Ollama kullanımı (Mevcut yapına göre)
-            if hasattr(self, 'gemini_client') and self.use_gemini:
-                response = await self.gemini_client.generate_content_async(prompt)
-                res_json = json.loads(response.text)
-            else:
-                res = await asyncio.to_thread(
-                    ollama.chat, 
-                    model=self.model,
-                    messages=[{'role': 'user', 'content': prompt}],
-                    format='json', 
-                    options={'temperature': 0.0} # Sıfır yaratıcılık
-                )
-                res_json = json.loads(res['message']['content'])
-            
-            return res_json.get('symbol')
-            
-        except Exception as e:
-            print(f"[HATA] Sembol Tespiti: {e}")
-            return None
+
 
 async def telegram_loop():
     client = TelegramClient(TELETHON_SESSION_NAME, API_ID, API_HASH)

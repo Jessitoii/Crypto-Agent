@@ -1,34 +1,215 @@
 
 ######################
-Time : 2025-12-03 21:19:31.101440
-LLM Trade Önerisi: ETHUSDT LONG (Güven: %90)
-Haber: Ethereum's 'Fusaka' Upgrade Cements Network's Role as On-Chain Finance Settlement Layer: Bitwise
-
-The upgrade will boost throughput, keep validators efficient and, most importantly, strengthen Ethereum's value capture by putting a floor under blob fees.
+Time : 2025-12-03 22:41:58.971168
+Pas Geçildi: SOLUSDT HOLD (Güven: %0)
+Haber: Solana Mobile says SKR token launch is coming in January - The Block
 ######################
 
 ######################
-Time : 2025-12-03 21:19:31.105463
-🔵 POZİSYON AÇILDI: ETHUSDT LONG | Giriş: 3137.92 | Top Point : 3.5 | Stop Loss : 0.8 | VM : 10 minutes
+Time : 2025-12-03 22:50:43.728238
+Pas Geçildi: BTCUSDT HOLD (Güven: %75)
+Haber: CryptoQuant says Strategy prepares for a bitcoin bear market as it sets up US dollar reserve - The Block
+######################
+
+######################
+Time : 2025-12-04 06:55:34.982876
+Pas Geçildi: BTCUSDT HOLD (Güven: %75)
+Haber: Major Asset Classes Performance In November 2025
+
+Bitcoin showed relative weakness compared to the S&P 500 in November, indicating a cooling of investor interest.
+
+👉 https://cryptorank.io/price/bitcoin
+######################
+
+######################
+Time : 2025-12-04 21:34:49.908105
+Pas Geçildi: BTCUSDT HOLD (Güven: %100)
+Haber: ‘Backed by nothing’: Peter Schiff says bitcoin can’t rival tokenized gold in debate with CZ - The Block
+######################
+
+######################
+Time : 2025-12-04 22:30:16.534860
+🔵 POZİSYON AÇILDI: SOLUSDT LONG | Giriş: 138.81 | Top Point : 3.0 | Stop Loss : 0.7 | VM : 60 minutes
+Src: MANUAL
+Reason: Positive news regarding Solana's interoperability with Base via a secure bridge. Price change is minimal, indicating a potential entry point before a broader market reaction.
+News: Coinbase, Chainlink Introduce Base-Solana Bridge to Link Ecosystems  The bridge, secured by Chainlink's Cross-Chain Interoperability Protocol, allows users to trade and interact with Solana-based tokens on Base-based dapps.
+Confidence: %92
+
+######################
+
+######################
+Time : 2025-12-04 22:30:46.648437
+🔵 POZİSYON AÇILDI: LINKUSDT LONG | Giriş: 14.1 | Top Point : 4.0 | Stop Loss : 0.7 | VM : 60 minutes
+Src: MANUAL
+Reason: Partnership announcement between Coinbase and Chainlink, enhancing Chainlink's interoperability. Price is stable, indicating potential for further upside.
+News: Coinbase, Chainlink Introduce Base-Solana Bridge to Link Ecosystems  The bridge, secured by Chainlink's Cross-Chain Interoperability Protocol, allows users to trade and interact with Solana-based tokens on Base-based dapps.
+Confidence: %95
+
+######################
+
+######################
+Time : 2025-12-04 22:34:11.970334
+🔵 POZİSYON AÇILDI: ETHUSDT LONG | Giriş: 3107.49 | Top Point : 3.0 | Stop Loss : 0.75 | VM : 30 minutes
+Src: MANUAL
+Reason: Positive news regarding DEX integration and spot trading, with minimal price movement in the last minute.
+News: Breakout Ethereum perps DEX Lighter rolls out spot trading - The Block
+Confidence: %85
+
+######################
+
+######################
+Time : 2025-12-04 23:04:12.684418
+🏁 KAPANDI: ETHUSDT (TIME LIMIT ⏳) | PnL: 0.22 USDT | Enter Price: 3107.49 | Close Price: 3121.27
+######################
+
+######################
+Time : 2025-12-05 00:01:56.241446
+🔵 POZİSYON AÇILDI: ETHUSDT LONG | Giriş: 3140.56 | Top Point : 3.0 | Stop Loss : 0.75 | VM : 60 minutes
 Src: TELEGRAM
-News : Ethereum's 'Fusaka' Upgrade Cements Network's Role as On-Chain Finance Settlement Layer: Bitwise
+Reason: Bullish news (Base network bridge to Solana) indicates potential for increased utility and adoption. Price change is minimal, suggesting a good entry point.
+News: Coinbase incubated Ethereum L2 Base network rolls out bridge to Solana - The Block
+Confidence: %85
 
-The upgrade will boost throughput, keep validators efficient and, most importantly, strengthen Ethereum's value capture by putting a floor under blob fees.
-Reason: Significant upgrade enhancing network capabilities and value capture
-######################
-
-######################
-Time : 2025-12-03 21:19:43.712163
-LLM Trade Önerisi: FILUSDT LONG (Güven: %65)
-Haber: Filecoin Gains 2% Alongside Crypto Rally
-
-The token tracked broader crypto sentiment on below-average volume, establishing an ascending trend.
 ######################
 
 ######################
-Time : 2025-12-03 21:19:43.713551
-Pas Geçildi: FILUSDT LONG (Güven: %65)
-Haber: Filecoin Gains 2% Alongside Crypto Rally
+Time : 2025-12-05 00:02:25.030737
+🔵 POZİSYON AÇILDI: SOLUSDT LONG | Giriş: 139.92 | Top Point : 3.0 | Stop Loss : 0.7 | VM : 60 minutes
+Src: TELEGRAM
+Reason: Positive news (Base network bridge to Solana) indicates potential for increased utility and adoption. Price change is stable, suggesting a good entry point.
+News: Coinbase incubated Ethereum L2 Base network rolls out bridge to Solana - The Block
+Confidence: %85
 
-The token tracked broader crypto sentiment on below-average volume, establishing an ascending trend.
+######################
+
+######################
+Time : 2025-12-05 00:20:09.361867
+❌ Bakiye Yetersiz!
+Src: TELEGRAM
+Reason: Bullish news regarding potential for Bitcoin to benefit altcoins, with a stable price. Low liquidity in December is a potential catalyst.
+News: Bitcoin Could Continue Chopping Below $95K Into Year-End and Altcoins Could Benefit, Analyst Says
+
+Low-liquidity in December may cap bitcoin's recovery rally, but rangebound trading for the largest crypto could benefit smaller digital assets, Wincent's Paul Howard said.
+Confidence: %85
+
+######################
+
+######################
+Time : 2025-12-05 00:20:51.402015
+ Pozisyon Zaten Açık
+Src: TELEGRAM
+Reason: Partnership with Deutsche Börse is a significant bullish signal for crypto adoption in Europe. ETHUSDT price change is stable, indicating a good entry point.
+News: Kraken Partners With Deutsche Börse as Europe Looks to Rival Wall Street in Crypto
+
+Deutsche Börse Group (DBG) and Kraken announced a strategic partnership signalling acceleration of crypto adoption across Europe and a clear intention to compete with Wall Street.
+Confidence: %95
+
+######################
+
+######################
+Time : 2025-12-05 01:23:10.726037
+❌ Bakiye Yetersiz!
+Src: TELEGRAM
+Reason: First Sui-based ETF approval is a significant bullish catalyst. Price change is minimal, indicating a potential entry point.
+News: First Sui-based ETF approved as 21Shares brings leveraged fund to market - The Block
+Confidence: %95
+
+######################
+
+######################
+Time : 2025-12-05 01:47:39.302054
+❌ Bakiye Yetersiz!
+Src: TELEGRAM
+Reason: Positive sentiment from JPMorgan regarding Bitcoin's resilience, with minimal price movement in the last minute. Suggests a potential entry point.
+News: JPMorgan says Strategy’s resilience is key to bitcoin’s price direction in the near term - The Block
+Confidence: %85
+
+######################
+
+######################
+Time : 2025-12-05 01:47:59.681065
+Pas Geçildi: NEARUSDT HOLD (Güven: %20)
+Haber: JPMorgan says Strategy’s resilience is key to bitcoin’s price direction in the near term - The Block
+######################
+
+######################
+Time : 2025-12-05 02:03:15.859134
+Pas Geçildi: LINKUSDT HOLD (Güven: %65)
+Haber: Nasdaq-listed TON token treasury firm AlphaTON Capital (ATON) announced that it has filed a $420.69 million shelf registration with the U.S. SEC to expand its investments in TON tokens, the Telegram mini-app ecosystem, and the recently launched Cocoon AI network. The firm has recently shifted most of its balance sheet into Toncoin and related staking positions and has deployed Nvidia B200 GPUs to support Cocoon. — link
+######################
+
+######################
+Time : 2025-12-05 03:20:13.215880
+❌ Bakiye Yetersiz!
+Src: TELEGRAM
+Reason: CZ's argument for Bitcoin as a monetary network is bullish. Price change is minimal, indicating potential for further upside.
+News: 🚨 TODAY: In their debate, Schiff called Bitcoin pure speculation, while CZ argued it is a real monetary network with global utility. 
+
+The standout moment came when Schiff was handed a gold bar and couldn’t tell if it was real.
+
+News | Markets | YouTube
+Confidence: %85
+
+######################
+
+######################
+Time : 2025-12-05 04:31:23.733327
+ Pozisyon Zaten Açık
+Src: TELEGRAM
+Reason: Positive news regarding Solana bridge integration with Base. Price change is minimal, indicating a potential entry point.
+News: 🚨 UPDATE: Base launched its Solana bridge on mainnet, secured by Chainlink CCIP and Coinbase, enabling cross-chain asset trading and liquidity access between both networks.
+
+News | Markets | YouTube
+Confidence: %95
+
+######################
+
+######################
+Time : 2025-12-05 04:31:58.374745
+❌ Bakiye Yetersiz!
+Src: TELEGRAM
+Reason: News highlights Chainlink's CCIP being a key component of a major Base bridge, indicating increased utility and adoption. Price change is stable, suggesting a good entry point.
+News: 🚨 UPDATE: Base launched its Solana bridge on mainnet, secured by Chainlink CCIP and Coinbase, enabling cross-chain asset trading and liquidity access between both networks.
+
+News | Markets | YouTube
+Confidence: %85
+
+######################
+
+######################
+Time : 2025-12-05 04:35:15.250880
+❌ Bakiye Yetersiz!
+Src: TELEGRAM
+Reason: JPMorgan's positive outlook and valuation ($170K) are bullish. Price change is minimal, indicating a potential entry point. MSTR's status is a short-term catalyst.
+News: JPMorgan said Bitcoin’s short-term trend hinges on whether Strategy (MSTR) can keep its EV/BTC ratio above 1 to avoid selling. The ratio is 1.13, supported by a $1.44B reserve covering two years of payouts. If MSCI retains MSTR on Jan. 15, BTC may rebound; if not, the impact is mostly priced in. JPMorgan’s mid-term model values BTC at about $170K. — link
+Confidence: %85
+
+######################
+
+######################
+Time : 2025-12-05 04:35:41.626955
+Pas Geçildi: LINKUSDT HOLD (Güven: %20)
+Haber: JPMorgan said Bitcoin’s short-term trend hinges on whether Strategy (MSTR) can keep its EV/BTC ratio above 1 to avoid selling. The ratio is 1.13, supported by a $1.44B reserve covering two years of payouts. If MSCI retains MSTR on Jan. 15, BTC may rebound; if not, the impact is mostly priced in. JPMorgan’s mid-term model values BTC at about $170K. — link
+######################
+
+######################
+Time : 2025-12-05 04:36:08.388930
+Pas Geçildi: ATUSDT HOLD (Güven: %20)
+Haber: JPMorgan said Bitcoin’s short-term trend hinges on whether Strategy (MSTR) can keep its EV/BTC ratio above 1 to avoid selling. The ratio is 1.13, supported by a $1.44B reserve covering two years of payouts. If MSCI retains MSTR on Jan. 15, BTC may rebound; if not, the impact is mostly priced in. JPMorgan’s mid-term model values BTC at about $170K. — link
+######################
+
+######################
+Time : 2025-12-05 05:22:54.598447
+Pas Geçildi: LINKUSDT HOLD (Güven: %85)
+Haber: The IMF warned that stablecoins could cause “currency substitution” and weaken central bank control, especially in cross-border and non-custodial use. It said 97% are dollar-pegged and urged bans on using digital assets as legal tender. Stablecoin use is rising fast in Africa, the Middle East, and Latin America. U.S. Treasury Secretary Scott Bessent said demand supports U.S. debt financing. — link
+######################
+
+######################
+Time : 2025-12-06 08:55:00.969051
+Pas Geçildi: LUNAUSDT HOLD (Güven: %95)
+Haber: 🚨 UPDATE: US prosecutors say Terraform Labs co-founder Do Kwon should receive 12 years in prison for the “colossal” fraud behind the $40 billion TerraUSD collapse. 
+
+His sentencing is scheduled for December 11 in New York.
+
+News | Markets | YouTube
 ######################
