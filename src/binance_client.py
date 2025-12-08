@@ -82,6 +82,7 @@ class BinanceExecutionEngine:
             
         except Exception as e: 
             print(f"❌ [API HATA] {e}")
+            raise e
 
     async def _place_tp_sl(self, symbol, side, entry, tp_pct, sl_pct):
         try:

@@ -23,7 +23,7 @@ from utils import get_top_pairs, get_top_100_map, perform_research
 load_dotenv()
 
 # GÜVENLİK AYARLARI
-USE_MAINNET = False # True = Gerçek Para, False = Testnet
+USE_MAINNET = True # True = Gerçek Para, False = Testnet
 REAL_TRADING_ENABLED = True # API'ye emir gitsin mi?
 
 if USE_MAINNET:
@@ -68,7 +68,8 @@ collector = TrainingDataCollector()
 dataset_manager = DatasetManager()
 telegram_client = TelegramClient(TELETHON_SESSION_NAME, API_ID, API_HASH)
 log_container = None # UI referansı
-
+# ... (Diğer global nesneler) ...
+stream_command_queue = asyncio.Queue() # Websocket'e emir gönderme kanalı
 # --- YARDIMCILAR ---
 def log_ui(message, type="info"):
     timestamp = time.strftime("%H:%M:%S")
@@ -191,6 +192,16 @@ async def process_news(msg, source="TELEGRAM"):
             
             dataset_manager.log_trade_entry(pair, msg, str(changes), dec, search_res)
 
+            # 2. DİNAMİK ABONELİK (SUBSCRIBE)
+            # Bot işlem açtığı an, bu coinin 1 dakikalık mumlarına abone olur.
+            subscribe_msg = {
+                "method": "SUBSCRIBE",
+                "params": [f"{pair.lower()}@kline_1m"],
+                "id": int(time.time())
+            }
+            # Kuyruğa at, websocket_loop bunu görüp gönderecek
+            await stream_command_queue.put(subscribe_msg)
+
             if REAL_TRADING_ENABLED:
                 env_lbl = "TESTNET" if IS_TESTNET else "MAINNET"
                 log_ui(f"🚀 {env_lbl} API Emri: {pair}", "error")
@@ -207,60 +218,90 @@ async def process_news(msg, source="TELEGRAM"):
 
 # --- LOOPLAR ---
 async def websocket_loop():
-    print("[SİSTEM] Websocket Başlatılıyor...")
+    print("[SİSTEM] Websocket Başlatılıyor (Dinamik Mod)...")
+    
+    # Base URL artık parametresiz, çünkü parametreleri dinamik göndereceğiz
+    # !miniTicker@arr her zaman açık kalsın ki genel piyasa yönünü (BTC %-5 mi?) bilelim.
+    BASE_WS = "wss://stream.binance.com:9443/ws/!miniTicker@arr" 
+    
     while True:
         try:
-            async for ws in websockets.connect(WEBSOCKET_URL, ping_interval=None):
-                log_ui("Websocket Bağlandı ✅ (Kline + Ticker)", "success")
-                try:
+            async with websockets.connect(BASE_WS) as ws:
+                log_ui("Websocket Bağlandı ✅ (Dynamic)", "success")
+                
+                # --- İÇ GÖREVLER ---
+                # 1. Gönderici (Sender): Kuyruktan emir bekler, Binance'e yollar
+                async def sender():
                     while True:
-                        msg = await ws.recv()
-                        raw_data = json.loads(msg)
+                        command = await stream_command_queue.get()
+                        await ws.send(json.dumps(command))
+                        log_ui(f"📡 Stream Güncellendi: {command['params']}", "info")
 
-                        # --- KRİTİK DÜZELTME: Zarfı Açma ---
-                        # Binance Combined Stream verisi {"stream": "...", "data": {...}} formatında gelir.
-                        if 'data' in raw_data:
-                            data = raw_data['data']
-                        else:
-                            data = raw_data # Tekli yayınsa direkt al
-                        # -----------------------------------
-
-                        # 1. KLINE (Mum Verisi)
-                        if isinstance(data, dict) and 'e' in data and data['e'] == 'kline':
-                            pair = data['s'].lower()
-                            k = data['k']
-                            price = float(k['c'])
-                            is_closed = k['x']
-                            ts = k['t'] / 1000
+                # 2. Alıcı (Receiver): Veriyi işler
+                async def receiver():
+                    async for msg in ws:
+                        try:
+                            raw_data = json.loads(msg)
                             
-                            # Hafızayı Güncelle
-                            market_memory[pair].update_candle(price, ts, is_closed)
-                            
-                            # --- BURASI ARTIK ÇALIŞACAK ---
-                            log, color, closed_sym, pnl = exchange.check_positions(pair, price)
-                            
-                            if log:
-                                log_ui(log, color)
-                                log_txt(log, "data/trade_logs.txt")
-                                asyncio.create_task(send_telegram_alert(log))
-                                if closed_sym:
-                                    dataset_manager.log_trade_exit(closed_sym, pnl, "Closed")
-                                    if REAL_TRADING_ENABLED:
-                                        asyncio.create_task(real_exchange.close_position_market(closed_sym))
+                            # Zarf Açma (Unwrapping) - Combined Stream formatı olmayabilir, dikkat
+                            # Direkt /ws/ endpointi kullandığımız için veri direkt gelebilir veya
+                            # subscribe sonrası format değişebilir. Her iki durumu da kapsayalım:
+                            if 'data' in raw_data:
+                                data = raw_data['data']
+                            else:
+                                data = raw_data
 
-                        # 2. MINITICKER (24s Değişim Listesi)
-                        elif isinstance(data, list): 
-                            for item in data:
-                                pair = item['s'].lower()
-                                if pair in market_memory:
-                                    # "P" = Price change percent
-                                    change_24h = float(item['P'])
-                                    market_memory[pair].set_24h_change(change_24h)
+                            # A. KLINE VERİSİ (Sadece açık pozisyonlar için gelir)
+                            if isinstance(data, dict) and data.get('e') == 'kline':
+                                pair = data['s'].lower()
+                                k = data['k']
+                                price = float(k['c'])
+                                is_closed = k['x']
+                                ts = k['t'] / 1000
+                                
+                                # Hafızayı güncelle
+                                market_memory[pair].update_candle(price, ts, is_closed)
+                                
+                                # POZİSYON KONTROLÜ
+                                log, color, closed_sym, pnl = exchange.check_positions(pair, price)
+                                if log:
+                                    log_ui(log, color)
+                                    log_txt(log, "data/trade_logs.txt")
+                                    asyncio.create_task(send_telegram_alert(log))
+                                    
+                                    if closed_sym:
+                                        # 1. Pozisyon kapandı, eğitimi kaydet
+                                        dataset_manager.log_trade_exit(closed_sym, pnl, "Closed")
+                                        
+                                        # 2. Gerçek borsada kapat (Varsa)
+                                        if REAL_TRADING_ENABLED:
+                                            asyncio.create_task(real_exchange.close_position_market(closed_sym))
+                                        
+                                        # 3. WEBSOCKET ABONELİĞİNİ İPTAL ET (UNSUBSCRIBE)
+                                        # Artık bu coini dinlemeye gerek yok, kaynak tasarrufu.
+                                        unsubscribe_msg = {
+                                            "method": "UNSUBSCRIBE",
+                                            "params": [f"{closed_sym.lower()}@kline_1m"],
+                                            "id": int(time.time())
+                                        }
+                                        await stream_command_queue.put(unsubscribe_msg)
 
-                except Exception as e:
-                    # Hata basıp durmasın diye pass geçiyoruz, debug için print açabilirsin
-                    # print(f"WS Parse Hatası: {e}") 
-                    pass
+                            # B. MINITICKER (Genel Piyasa Nabzı)
+                            elif isinstance(data, list): 
+                                for item in data:
+                                    pair = item['s'].lower()
+                                    # Sadece izleme listemizdekileri hafızaya alalım (RAM tasarrufu)
+                                    if pair in TARGET_PAIRS: 
+                                        market_memory[pair].set_24h_change(float(item['P']))
+                                        
+                        except Exception as e:
+                            print(f"WS Parse Error: {e}")
+                            log_ui(f"WS Parse Hatası: {e}", "error")
+                            pass
+
+                # Sender ve Receiver'ı aynı anda çalıştır
+                await asyncio.gather(sender(), receiver())
+
         except Exception as e:
             log_ui(f"WS Koptu (5sn): {e}", "error")
             await asyncio.sleep(5)
