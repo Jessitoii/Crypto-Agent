@@ -41,7 +41,6 @@ class PaperExchange:
         else:
             pos['pnl'] = (pos['entry'] - current_price) * pos['qty']
 
-        print("Time : " , time.time(), "Expiry : ",pos['expiry_time'])
 
         close_reason = None
         if time.time() > pos['expiry_time']:

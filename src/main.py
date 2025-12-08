@@ -41,9 +41,8 @@ if not API_KEY: raise ValueError("API Key Eksik!")
 # DİĞER AYARLAR
 TARGET_CHANNELS = ['cointelegraph', 'wublockchainenglish', 'CryptoRankNews', 'TheBlockNewsLite', 'coindesk', 'arkhamintelligence', 'glassnode'] 
 TARGET_PAIRS = get_top_pairs(50)
-BASE_URL = os.getenv('BASE_URL', "wss://stream.binance.com:9443/stream?streams=")
-STREAM_PARAMS = "/".join([f"{pair}@kline_1m" for pair in TARGET_PAIRS] + ["!miniTicker@arr"])
-WEBSOCKET_URL = f"{BASE_URL}{STREAM_PARAMS}"
+BASE_URL = os.getenv('BASE_URL', "wss://stream.binance.com:9443/ws")
+WEBSOCKET_URL = BASE_URL # Parametre yok, saf bağlantı.STREAM_PARAMS = "/".join([f"{pair}@kline_1m" for pair in TARGET_PAIRS] + ["!miniTicker@arr"])
 
 # Telegram
 API_ID = int(os.getenv('API_ID'))
@@ -51,9 +50,9 @@ API_HASH = os.getenv('API_HASH')
 TELETHON_SESSION_NAME = os.getenv('TELETHON_SESSION_NAME')
 
 # Simülasyon
-STARTING_BALANCE = 22
+STARTING_BALANCE = 19.73
 LEVERAGE = 10 
-FIXED_TRADE_AMOUNT = 11 # USDT
+FIXED_TRADE_AMOUNT = 9 # USDT
 
 # GLOBAL NESNELER
 class State:
@@ -122,13 +121,14 @@ async def process_news(msg, source="TELEGRAM"):
     clean_msg = msg.replace("— link", "").replace("Link:", "")
     msg_lower = clean_msg.lower()
     
+    log_txt(f"[{source}] Gelen Haber: {clean_msg}")
     for word in IGNORE_KEYWORDS:
         if word in msg_lower:
             log_ui(f"🛑 [FİLTRE] Bayat haber: '{word}'", "warning")
+            log_txt(f"🛑 [FİLTRE] Bayat haber: '{word}'")
             return
 
-    log_ui(f"[{source}] Taranıyor: {msg[:40]}...", "info")
-    
+    log_ui(f"[{source}] Taranıyor: {msg[:40]}...", "info")    
     # 1. Regex & Mapping ile Coin Bul
     name_map = get_top_100_map()
     search_text = msg_lower
@@ -149,6 +149,7 @@ async def process_news(msg, source="TELEGRAM"):
             pot_pair = f"{found_symbol.lower()}usdt"
             if pot_pair in TARGET_PAIRS:
                 log_ui(f"🕵️ AJAN BULDU: {found_symbol}", "success")
+                log_txt(f"🕵️ AJAN BULDU: {found_symbol}")
                 detected_pairs.append(pot_pair)
 
     # 3. Analiz Döngüsü
@@ -167,12 +168,23 @@ async def process_news(msg, source="TELEGRAM"):
         # Araştırma
         smart_query = await brain.generate_search_query(msg, pair.replace('usdt',''))
         log_ui(f"🌍 Araştırılıyor: '{smart_query}'", "info")
+        log_txt(f"🌍 Smart Query: '{smart_query}'")
         search_res = await perform_research(smart_query)
 
         # Karar
         changes = stats.get_all_changes()
+        
         dec = await brain.analyze_specific(msg, pair, stats.current_price, changes, search_res)
-
+        
+        #for testing
+        """dec = {
+            "action": "LONG",
+            "confidence": 80,
+            "tp_pct": 2.0,
+            "sl_pct": 1.0,
+            "reason": "Demo karar",
+            "validity_minutes": 15
+        }"""
         # Loglama
         collector.log_decision(msg, pair, stats.current_price, str(changes), dec)
         
@@ -185,7 +197,7 @@ async def process_news(msg, source="TELEGRAM"):
             
             print("Top and Stop Price:", dec['tp_pct'], " | ", dec['sl_pct'])
 
-            full_log = f"{log}\nSrc: {source}\nReason: {dec.get('reason')}"
+            full_log = f"{log}\nSrc: {source}\nReason: {dec.get('reason')}\nNews: {msg}\n"
             log_ui(full_log, color)
             log_txt(full_log)
             asyncio.create_task(send_telegram_alert(full_log))
@@ -214,44 +226,39 @@ async def process_news(msg, source="TELEGRAM"):
                     log_ui(f"API Emri Hatası: {e}", "error")
                     exchange.close_position(pair.replace('usdt', ''), "API ERROR", 0.0)
         else:
-            log_ui(f"🛑 Pas: {pair} {dec['action']} (G: %{dec['confidence']}) - {dec.get('reason')}", "warning")
-
+            log_ui(f"🛑 Pas: {pair} | {dec['action']} | (G: %{dec['confidence']}) | Reason : {dec.get('reason')}\nNews: {msg}\n", "warning")
+            log_txt(f"🛑 Pas: {pair} | {dec['action']} | (G: %{dec['confidence']}) | Reason : {dec.get('reason')}\nNews: {msg}\n")
+            asyncio.create_task(send_telegram_alert(f"🛑 Pas: {pair} | {dec['action']} | (G: %{dec['confidence']}) | Reason : {dec.get('reason')}\nNews: {msg}\n"))
 # --- LOOPLAR ---
 async def websocket_loop():
-    print("[SİSTEM] Websocket Başlatılıyor (Dinamik Mod)...")
-    
-    # Base URL artık parametresiz, çünkü parametreleri dinamik göndereceğiz
-    # !miniTicker@arr her zaman açık kalsın ki genel piyasa yönünü (BTC %-5 mi?) bilelim.
-    BASE_WS = "wss://stream.binance.com:9443/ws/!miniTicker@arr" 
+    print("[SİSTEM] Websocket Başlatılıyor (Sniper Modu)...")
     
     while True:
         try:
-            async with websockets.connect(BASE_WS) as ws:
-                log_ui("Websocket Bağlandı ✅ (Dynamic)", "success")
+            async with websockets.connect(WEBSOCKET_URL) as ws:
+                log_ui("Websocket Bağlandı ✅ (Beklemede)", "success")
                 
                 # --- İÇ GÖREVLER ---
-                # 1. Gönderici (Sender): Kuyruktan emir bekler, Binance'e yollar
+                # 1. Gönderici (Sender): Kuyruktan emir bekler
                 async def sender():
                     while True:
                         command = await stream_command_queue.get()
                         await ws.send(json.dumps(command))
                         log_ui(f"📡 Stream Güncellendi: {command['params']}", "info")
 
-                # 2. Alıcı (Receiver): Veriyi işler
+                # 2. Alıcı (Receiver): Sadece abone olunan veriyi işler
                 async def receiver():
                     async for msg in ws:
                         try:
                             raw_data = json.loads(msg)
                             
-                            # Zarf Açma (Unwrapping) - Combined Stream formatı olmayabilir, dikkat
-                            # Direkt /ws/ endpointi kullandığımız için veri direkt gelebilir veya
-                            # subscribe sonrası format değişebilir. Her iki durumu da kapsayalım:
+                            # Zarf Açma
                             if 'data' in raw_data:
                                 data = raw_data['data']
                             else:
                                 data = raw_data
 
-                            # A. KLINE VERİSİ (Sadece açık pozisyonlar için gelir)
+                            # SADECE KLINE VERİSİ (Açık Pozisyonlar İçin)
                             if isinstance(data, dict) and data.get('e') == 'kline':
                                 pair = data['s'].lower()
                                 k = data['k']
@@ -266,19 +273,15 @@ async def websocket_loop():
                                 log, color, closed_sym, pnl = exchange.check_positions(pair, price)
                                 if log:
                                     log_ui(log, color)
-                                    log_txt(log, "data/trade_logs.txt")
+                                    log_txt(log, "trade_logs.txt")
                                     asyncio.create_task(send_telegram_alert(log))
                                     
                                     if closed_sym:
-                                        # 1. Pozisyon kapandı, eğitimi kaydet
                                         dataset_manager.log_trade_exit(closed_sym, pnl, "Closed")
-                                        
-                                        # 2. Gerçek borsada kapat (Varsa)
                                         if REAL_TRADING_ENABLED:
                                             asyncio.create_task(real_exchange.close_position_market(closed_sym))
                                         
-                                        # 3. WEBSOCKET ABONELİĞİNİ İPTAL ET (UNSUBSCRIBE)
-                                        # Artık bu coini dinlemeye gerek yok, kaynak tasarrufu.
+                                        # İş bitti, yayını kapat
                                         unsubscribe_msg = {
                                             "method": "UNSUBSCRIBE",
                                             "params": [f"{closed_sym.lower()}@kline_1m"],
@@ -286,20 +289,15 @@ async def websocket_loop():
                                         }
                                         await stream_command_queue.put(unsubscribe_msg)
 
-                            # B. MINITICKER (Genel Piyasa Nabzı)
-                            elif isinstance(data, list): 
-                                for item in data:
-                                    pair = item['s'].lower()
-                                    # Sadece izleme listemizdekileri hafızaya alalım (RAM tasarrufu)
-                                    if pair in TARGET_PAIRS: 
-                                        market_memory[pair].set_24h_change(float(item['P']))
-                                        
+                            # BURADA ARTIK 'elif list' YOK.
+                            # 'P' hatası veren kısım çöpe atıldı.
+
                         except Exception as e:
-                            print(f"WS Parse Error: {e}")
-                            log_ui(f"WS Parse Hatası: {e}", "error")
+                            # Hata olursa sadece konsola bas, UI'yı kirletme
+                            print(f"WS Hata: {e}")
+                            log_ui(f"WS İşleme Hatası: {e}", "error")
                             pass
 
-                # Sender ve Receiver'ı aynı anda çalıştır
                 await asyncio.gather(sender(), receiver())
 
         except Exception as e:

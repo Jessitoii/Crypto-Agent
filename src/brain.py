@@ -6,7 +6,7 @@ import asyncio
 from dotenv import load_dotenv
 from google.genai import types
 
-from utils import search_web_sync
+from utils import search_web_sync, coin_categories
 
 
 class AgentBrain:
@@ -106,10 +106,10 @@ class AgentBrain:
     # --- DEBUG LOGU (Bunu konsolda görmek istiyorum) ---
         print(f"🐛 [DEBUG] {symbol} Kategorisi: '{coin_category}'")
         prompt = f"""
-        TARGET COIN TO TRADE: {symbol.upper()}
-        TARGET COIN CATEGORY: {coin_category} (TRUST THIS CATEGORY!)
+        TARGET COIN: {symbol.upper()}
+        OFFICIAL CATEGORY: {coin_category} (TRUST THIS CATEGORY ABSOLUTELY!)
         
-        MARKET DATA:
+        MARKET MOMENTUM:
         - Price: {price}
         - 1m Change: {changes['1m']:.2f}%
         - 10m Change: {changes['10m']:.2f}%
@@ -117,41 +117,37 @@ class AgentBrain:
         - 24h Change: {changes['24h']:.2f}%
         
         NEWS SNIPPET: "{news}"
-        RESEARCH CONTEXT: {search_context}
+        RESEARCH CONTEXT: "{search_context}"
 
-        ACT AS A CYNICAL TRADER. DO NOT BE AN OPTIMIST.
+        ROLE: You are an AGGRESSIVE SCALPER. Do not hold positions.
         
-        CRITICAL RULES::
-        1. IDENTITY CHECK: The news might mention "USDT" or "Stablecoins". DO NOT confuse them with the TARGET COIN ({symbol.upper()}). 
-           - If TARGET COIN is ETH, it is NOT a stablecoin, even if USDT is mentioned.
-        2. RELEVANCE: Does this news specifically affect {symbol.upper()} price?
-           - "Binance Proof of Reserves" is usually NEUTRAL/HOLD unless huge outflow.
-        3. SECTOR HYPE: If CATEGORY is "AI" or "Meme" and news is positive, be more aggressive (Higher Confidence).
-        4. MOMENTUM CHECK (MULTI-TIMEFRAME):
-           - If 1m and 10m are pumping (>3%) -> FOMO Risk. HOLD.
-           - If 24h is DOWN but 1m is UP on Good News -> REVERSAL (Good Long).
-           - If 24h is UP (>10%) and 1m is UP -> OVERBOUGHT (Risky).
+        CRITICAL RULES (PRIORITY 1):
+        1. IDENTITY: If TARGET COIN is 'ETH' (Layer-1), do NOT treat it as 'Stablecoin' even if news mentions USDT.
+        2. RELEVANCE: Ensure news is specifically about {symbol.upper()}. Ignore generic market news unless it's a massive crash/pump.
         
-        YOUR MISSION:
-        1. VALIDATION: Is the news TRULY about {symbol.upper()}? If it's about "Stablecoins" or "General Market", do NOT trade specific alts like LINK/THE. ACTION: HOLD.
-        2. SENTIMENT ANALYSIS:
-           - "Hacks", "Delisting", "Regulations", "Delayed Launch", "Execs Leaving" -> SHORT.
-           - "Price Crash", "Bear Market", "Outflows" -> SHORT.
-           - "Partnership", "Mainnet Launch", "ETF Approval" -> LONG.
-        3. MOMENTUM CHECK (CRITICAL):
-           - If news is BULLISH but price is DOWN/STABLE -> LONG (Sniper Entry).
-           - If news is BULLISH but price already PUMPED (>2%) -> HOLD (FOMO Trap).
-           - If news is BEARISH but price is UP -> SHORT (Top Short).
-           - If news is BEARISH and price is DUMPING -> HOLD (Panic Sell Trap).
+        TRADING LOGIC (PRIORITY 2):
+        A. SHORT SIGNALS (Don't be afraid to short):
+           - News = "Hack", "Exploit", "Delay", "Scam", "Investigation", "Sell-off".
+           - News = "Good/Neutral" BUT Price is DROPPING (1m < -0.5%) -> Trend Reversal Short.
+           - News = "Bad" AND Price is PUMPING -> Top Short Opportunity.
+           
+        B. LONG SIGNALS:
+           - News = "Major Partnership", "ETF Approval", "Listing", "Mainnet".
+           - ONLY if Price is STABLE (-0.5% to +0.5%) or DIPPING. 
+           - IF Price > +2.0% (1m/10m) -> HOLD (FOMO Trap).
+           
+        C. TIME MANAGEMENT:
+           - MAX VALIDITY: 30 Minutes. NO EXCEPTIONS.
+           - Ideal Validity: 10-15 Minutes.
         
         JSON OUTPUT ONLY:
         {{
             "action": "LONG" | "SHORT" | "HOLD",
-            "confidence": <int>,
-            "tp_pct": <float>,
-            "sl_pct": <float>,
-            "validity_minutes": <int>,
-            "reason": "<Explain logic>"
+            "confidence": <int 0-100>,
+            "tp_pct": <float 1.5-4.0>,
+            "sl_pct": <float 0.5-1.5>,
+            "validity_minutes": <int 5-30>,
+            "reason": "SHORT because bad news and price weakness. Time limited to 15m."
         }}
         """
         try:
@@ -266,63 +262,33 @@ class AgentBrain:
         """
         sym = symbol.upper().replace('USDT', '')
         
-        # 1. HIZLI LİSTE (Hardcoded)
-        # En popüler coinleri elle yazalım ki LLM saçmalamasın.
-        known_coins = {
-            'BTC': 'Layer-1 (Store of Value)',
-            'ETH': 'Layer-1 (Smart Contract)',
-            'SOL': 'Layer-1 (High Speed)',
-            'BNB': 'Exchange Token / Layer-1',
-            'XRP': 'Payment / Layer-1',
-            'DOGE': 'Meme Coin',
-            'SHIB': 'Meme Coin',
-            'ADA': 'Layer-1',
-            'AVAX': 'Layer-1',
-            'LINK': 'Oracle (Infrastructure)',
-            'MATIC': 'Layer-2',
-            'UNI': 'DeFi (DEX)',
-            'LDO': 'DeFi (Liquid Staking)',
-            'USDT': 'Stablecoin',
-            'USDC': 'Stablecoin',
-            'FDUSD': 'Stablecoin'
-        }
+        # 1. HIZLI LİSTE (Hardcoded Memory)
+        # coin_categories sözlüğünü buraya veya sınıfın tepesine yapıştır
+        # (Yukarıdaki uzun listeyi buraya koy)
         
-        if sym in known_coins:
-            return known_coins[sym]
+        if sym in coin_categories:
+            return coin_categories[sym]
 
-        # 2. BİLİNMEYEN COINLER İÇİN ARAMA (Cache)
+        # 2. CACHE KONTROLÜ (Daha önce arattık mı?)
         if not hasattr(self, 'coin_cache'):
             self.coin_cache = {}
         
         if sym in self.coin_cache:
             return self.coin_cache[sym]
-        
-        # Hafıza (Cache) - Her seferinde arama yapmasın, bir kere öğrensin yeter
-        if not hasattr(self, 'coin_cache'):
-            self.coin_cache = {}
-        
-        if symbol in self.coin_cache:
-            return self.coin_cache[symbol]
 
-        # Bilmiyorsa Ara
-        query = f"what is {symbol} crypto category sector utility"
+        # 3. BİLİNMEYEN COINLER İÇİN İNTERNET ARAMASI (Fallback)
+        # Burası sadece listede olmayan yeni/küçük coinler için çalışır
+        print(f"🔍 [BEYİN] {sym} bilinmiyor, internetten öğreniliyor...")
+        query = f"what is {sym} crypto category sector utility"
         try:
-            # DuckDuckGo araması (zaten import etmiştin)
-            if self.use_gemini: # Gemini varsa search tool'u kullanabilir veya DDGS
-                 # Hız için yine DDGS kullanalım, Gemini'ye metni verelim
-                 pass 
-            
-            # DDGS senkron olduğu için thread'e atıyoruz
+            # DuckDuckGo araması (utils.py'dan search_web_sync fonksiyonunu kullan)
             search_text = await asyncio.to_thread(search_web_sync, query)
             
-            # Basit bir özetleme yapalım (LLM ile değil, String işlemiyle hız kazan)
-            # Ama LLM ile yapmak daha garantidir.
+            # LLM'e sorma kısmı (Senin mevcut kodun)
             profile_prompt = f"""
             DATA: {search_text}
-            
-            TASK: Classify {symbol} into ONE category.
-            OPTIONS: [Layer-1, Layer-2, DeFi, AI, Meme, Gaming, Stablecoin, Exchange Token, Infrastructure]
-            
+            TASK: Classify {sym} into ONE category.
+            OPTIONS: [Layer-1, Layer-2, DeFi, AI, Meme, Gaming, Stablecoin, RWA, Oracle]
             OUTPUT: Just the category name.
             """
             
