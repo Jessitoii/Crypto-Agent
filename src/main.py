@@ -123,7 +123,7 @@ async def update_system_balance(last_pnl=0.0):
             
             diff = total - old_balance
             icon = "📈" if diff >= 0 else "📉"
-            log_ui(f"{icon} Bakiye Güncellendi: {total:.2f} USDT (Fark: {diff:+.2f})", "info", save_file=True)
+            log_ui(f"{icon} Bakiye Güncellendi: {total:.2f} USDT (Fark: {diff:+.2f})", "info")
             
     else:
         # Sadece Kağıt Üzerinde (Matematiksel Ekleme)
@@ -199,7 +199,7 @@ async def process_news(msg, source="TELEGRAM"):
             pattern = rf"(\${symbol}\b)|((?<![\w'])\b{symbol}\s+{suffixes}\b)"
             
             if re.search(pattern, msg, re.IGNORECASE):
-                log_ui(f"🕵️ Hassas Ticker Tespit Edildi: {symbol}", "warning", save_file=True)
+                log_ui(f"🕵️ Hassas Ticker Tespit Edildi: {symbol}", "warning")
                 detected_pairs.append(pair)
         
         # SENARYO 2: GÜVENLİ COIN (BTC, ETH, SOL...)
@@ -251,7 +251,7 @@ async def process_news(msg, source="TELEGRAM"):
             "tp_pct": 2.0,
             "sl_pct": 1.0,
             "reason": "Demo karar",
-            "validity_minutes": 0
+            "validity_minutes": 1
         }"""
         # Loglama
         collector.log_decision(msg, pair, stats.current_price, str(changes), dec)
@@ -278,13 +278,13 @@ async def process_news(msg, source="TELEGRAM"):
                 # 2. SONUCU KONTROL ET
                 if api_result == "Pozisyon Açma Hatası":
                     # Kritik hata: Binance reddetti. Simülasyonu da açma!
-                    log_ui(f"❌ Binance işlemi reddetti: {pair.upper()}. Simülasyon iptal.", "error", save_file=True)
+                    log_ui(f"❌ Binance işlemi reddetti: {pair.upper()}. Simülasyon iptal.", "error")
                     can_open_paper_trade = False
                     
                 elif api_result == "TP/SL Yerleştirme Hatası":
                     # Yarı başarılı: Pozisyon açık ama TP/SL yok.
                     # Simülasyonu aç, bot zaten fiyatı takip edip kapatacak.
-                    log_ui(f"⚠️ Binance TP/SL hatası: {pair.upper()}. Bot manuel takip edecek.", "warning", save_file=True)
+                    log_ui(f"⚠️ Binance TP/SL hatası: {pair.upper()}. Bot manuel takip edecek.", "warning")
                     can_open_paper_trade = True
                     
                 elif api_result == "Pozisyon açıldı":
@@ -305,19 +305,19 @@ async def process_news(msg, source="TELEGRAM"):
                 log, color = exchange.open_position(
                     symbol=pair, 
                     side=dec['action'], 
-                    entry_price=stats.current_price, # API'den dönen gerçek fiyatı buraya verebiliriz aslında ama şimdilik böyle kalsın
+                    price=stats.current_price, # API'den dönen gerçek fiyatı buraya verebiliriz aslında ama şimdilik böyle kalsın
                     tp_pct=tp_pct, 
                     sl_pct=sl_pct, 
-                    amount=trade_amount, 
+                    amount_usdt=trade_amount, 
                     leverage=leverage, 
-                    validity_minutes=validity,
-                    reason=dec.get('reason', 'N/A'),
-                    confidence=dec['confidence']
+                    validity=validity,
+                    app_state=app_state,
                 )
                 
                 # Detaylı Log
                 full_log = log + f'\nSrc: {source}\nReason: {dec.get("reason")}\nNews: {msg}'
-                log_ui(full_log, color, save_file=True)
+                log_ui(full_log, color)
+                log_txt(full_log)
                 
                 # Dataset'e kaydet (Eğitim için)
                 dataset_manager.log_trade_entry(
@@ -343,7 +343,7 @@ async def process_news(msg, source="TELEGRAM"):
         else:
             # Pas geçilen işlem (Aynı kalacak)
             log = f"🛑 Pas: {pair.upper()} ({coin_full_name}) | {dec['action']} | (G: %{dec['confidence']}) | Reason : {dec.get('reason')}\nNews: {msg}"
-            log_ui(log, "warning", save_file=True)
+            log_ui(log, "warning")
 
     end_time = time.time()
     print(f"[{source}] Haber İşleme Süresi: {end_time - start_time:.2f} saniye.")
@@ -459,7 +459,7 @@ async def start_tasks():
             # Global ayarı da güncelle (Opsiyonel ama iyi olur)
             STARTING_BALANCE = real_total
             
-            log_ui(f"✅ Bakiye Eşitlendi: {real_total:.2f} USDT (Kullanılabilir: {real_available:.2f})", "success", save_file=True)
+            log_ui(f"✅ Bakiye Eşitlendi: {real_total:.2f} USDT (Kullanılabilir: {real_available:.2f})", "success")
         else:
             log_ui("⚠️ Gerçek bakiye çekilemedi veya 0. Varsayılan kullanılıyor.", "warning")
         # -----------------------------------------------------

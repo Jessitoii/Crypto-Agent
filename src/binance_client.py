@@ -149,27 +149,28 @@ class BinanceExecutionEngine:
             # --- STOP LOSS EMRI (STOP_MARKET) ---
             # closePosition=True dediğimiz için miktar (quantity) göndermiyoruz.
             # workingType='MARK_PRICE' iğnelerden korur.
-            await self.client.futures_create_order(
+            await self.client.futures_create_algo_order(
                 symbol=symbol, 
                 side=close_side, 
                 type='STOP_MARKET', 
-                stopPrice=sl, 
+                triggerPrice=sl, # <--- BURASI DEĞİŞTİ
                 closePosition=True, 
                 workingType='MARK_PRICE',
-                priceProtect=True
+                algoType='CONDITIONAL'
             )
             
-            # --- TAKE PROFIT EMRI (TAKE_PROFIT_MARKET) ---
-            await self.client.futures_create_order(
+            # --- TAKE PROFIT EMRI (ALGO ENDPOINT) ---
+            # DÜZELTME: stopPrice -> triggerPrice
+            await self.client.futures_create_algo_order(
                 symbol=symbol, 
                 side=close_side, 
                 type='TAKE_PROFIT_MARKET', 
-                stopPrice=tp, 
+                triggerPrice=tp, # <--- BURASI DEĞİŞTİ
                 closePosition=True, 
                 workingType='MARK_PRICE',
-                priceProtect=True
+                algoType='CONDITIONAL'
             )
-
+            
             print(f"✅ [API] TP/SL Yerleştirildi ({symbol})")
 
         except Exception as e: 
@@ -220,9 +221,10 @@ class BinanceExecutionEngine:
                 if asset['asset'] == 'USDT':
                     # balance: Toplam Varlık (Pozisyonlar dahil)
                     # withdrawAvailable: İşlem açılabilir boş bakiye
+                    print(f"🧾 [BAKİYE VERİSİ] {asset}")
+
                     total_balance = float(asset['balance'])
-                    available_balance = float(asset['withdrawAvailable'])
-                    
+                    available_balance = float(asset.get('availableBalance', 0.0))                    
                     print(f"💰 [CÜZDAN] Toplam: {total_balance:.2f} USDT | Boşta: {available_balance:.2f} USDT")
                     return total_balance, available_balance
             
