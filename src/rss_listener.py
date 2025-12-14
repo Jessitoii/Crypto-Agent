@@ -18,12 +18,12 @@ class RSSMonitor:
                 link = entry.link
                 title = entry.title
                 summary = getattr(entry, 'summary', '')
-
+                
                 if hasattr(entry, 'published_parsed'):
                     published_time = time.mktime(entry.published_parsed)
                     current_time = time.time()
-                    # 2 saatten (7200 sn) eski haberleri direkt çöpe at
-                    if current_time - published_time > 60:
+                    # 1 saat (3600 sn) eski haberleri direkt çöpe at
+                    if current_time - published_time > 3600:
                         continue
                 
                 # Eğer bu linki daha önce görmediysek

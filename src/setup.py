@@ -1,5 +1,6 @@
 from telethon import TelegramClient
 import asyncio
+import os
 
 # BURALARI DOLDUR
 API_ID = 33059879
@@ -7,6 +8,10 @@ API_HASH = 'aac2748df0bff64aadcdc7692588b75b'
 TELETHON_SESSION_NAME = 'crypto_agent_session'
 
 async def main():
+    path = os.path.realpath(__file__)
+    dir = os.path.dirname(path)
+    dir = dir.replace('src', 'data')
+    os.chdir(dir)
     print("Telegram oturumu oluşturuluyor...")
     client = TelegramClient(TELETHON_SESSION_NAME, API_ID, API_HASH)
     
