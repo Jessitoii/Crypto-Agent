@@ -61,7 +61,7 @@ TELETHON_SESSION_NAME = os.getenv('TELETHON_SESSION_NAME')
 # --- Simulation Configuration ---
 STARTING_BALANCE = 19.73
 LEVERAGE = 10 
-FIXED_TRADE_AMOUNT = 9 
+FIXED_TRADE_AMOUNT = 8
 
 # --- Filter Constants ---
 IGNORE_KEYWORDS = ['daily', 'digest', 'recap', 'summary', 'analysis', 'price analysis', 'prediction', 'overview', 'roundup']

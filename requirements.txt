@@ -11,3 +11,4 @@ openai
 groq
 db-sqlite3
 scikit-learn
+feedparser
