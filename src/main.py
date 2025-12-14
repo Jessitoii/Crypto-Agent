@@ -110,4 +110,4 @@ def index():
     )
 
 app.on_startup(start_tasks)
-ui.run(title="Crypto AI", dark=True, port=8080, reload=False)
+ui.run(title="Crypto AI", host="0.0.0.0", dark=True, port=8080, reload=False)
