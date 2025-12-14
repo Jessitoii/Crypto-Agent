@@ -1,122 +1,135 @@
-from datetime import datetime
-from google import genai
 import json
-import ollama 
 import os
 import asyncio
+from datetime import datetime
 from dotenv import load_dotenv
-from google.genai import types
-
+from groq import AsyncGroq
+import ollama
+# Yerel modüller
+from config import llm_config
 from utils import search_web_sync, coin_categories
-
+import time
+import re
 
 class AgentBrain:
-    def __init__(self):
-        # Ayarları .env'den çek
-        self.use_gemini = False
-        self.ollama_model = "crypto-agent:gemma" # Fallback
-        
-        # ORTAK SYSTEM PROMPT (Hem Gemini hem Ollama için)
-        self.system_instruction = """
-        You are an elite high-frequency crypto trading AI.
-        
-        CORE RULES:
-        1. PAIR SELECTION: I will provide a list of AVAILABLE_COINS. Pick relevant ones based on the news.
-        2. INFERENCE: If news says "Satoshi", imply "BTC". If "Vitalik", imply "ETH".
-        3. OUTPUT: Return a JSON object with a "trades" list.
-        
-        JSON STRUCTURE:
-        {
-          "trades": [
-            {
-              "symbol": "BTC",
-              "action": "LONG" | "SHORT",
-              "confidence": 85,
-              "tp_pct": 2.5,
-              "sl_pct": 1.0,
-              "validity_minutes": 15,
-              "reason": "Mining upgrade news"
-            }
-          ]
-        }
-        """
+    def __init__(self, use_groqcloud=True, api_key=None, groqcloud_model="google/gemini-2.0-flash-exp:free"):
+        self.use_groqcloud = use_groqcloud
+        self.model = groqcloud_model
+        self.ollama_model = "crypto-agent:gemma"  # Fallback
+        self.api_key = api_key
+        self.coin_cache = {} # Cache'i başta tanımla
+        self.last_request_time = 0
+        # Dakikada 1 istek için 60sn. Güvenlik payı ile 62sn yapıyoruz.
+        self.MIN_REQUEST_INTERVAL = 62
 
-        if self.use_gemini:
-            load_dotenv()
-            api_key = os.getenv("GOOGLE_API_KEY")
-            if not api_key:
-                print("❌ [HATA] USE_GEMINI=True ama GOOGLE_API_KEY yok!")
-                self.use_gemini = False # Fallback to Ollama
-            else:
-                # Gemini için yapılandırma
-                self.gemini_client = genai.Client(api_key=api_key)
-                print(f"🧠 [BEYİN] Mod: GEMINI API ({os.getenv('GEMINI_MODEL')})")
+        # 1. OpenRouter (GroqCloud) Kurulumu
+        if self.use_groqcloud:
+            print(f"🧠 [BEYİN] Mod: OPENROUTER ({self.model})")
+            self.client = AsyncGroq(
+                api_key=self.api_key,
+            )
         
-        if not self.use_gemini:
+        # 2. Yerel Ollama Kurulumu (Fallback)
+        else:
             print(f"🧠 [BEYİN] Mod: YEREL OLLAMA ({self.ollama_model})")
-            
-            # --- YENİ: MODEL ISITMA VE KİLİTLEME ---
             print("🔥 [SİSTEM] Model VRAM'e yükleniyor ve kilitleniyor (Keep-Alive)...")
             try:
-                # keep_alive=-1 demek "Ben kapatana kadar model hafızada kalsın" demektir.
                 ollama.chat(model=self.ollama_model, messages=[{'role': 'user', 'content': 'hi'}], keep_alive=-1)
                 print("✅ [SİSTEM] Model yüklendi ve hazır!")
             except Exception as e:
                 print(f"⚠️ Model yükleme uyarısı: {e}")
 
-    async def analyze(self, news, available_pairs):
-        # Coin listesini string'e çevir
-        coins_str = ", ".join([p.replace('usdt', '').upper() for p in available_pairs])
-        
-        # User Prompt (Sadece anlık veriyi içerir)
-        user_prompt = f"""
-        AVAILABLE_COINS: [{coins_str}]
-        NEWS: "{news}"
-        
-        TASK: Identify impacted coins and decide trades. 
-        If no relevant coin found or news is irrelevant, return {{ "trades": [] }}
+    async def _wait_for_rate_limit(self):
         """
+        GroqCloud TPM limitini aşmamak için zorunlu bekleme süresi.
+        Son istekten bu yana 62 saniye geçmediyse, kalan süre kadar uyur.
+        """
+        if not self.use_groqcloud:
+            return
 
+        current_time = time.time()
+        time_diff = current_time - self.last_request_time
+
+        if time_diff < self.MIN_REQUEST_INTERVAL:
+            sleep_time = self.MIN_REQUEST_INTERVAL - time_diff
+            print(f"⏳ [KOTA KORUMASI] {sleep_time:.1f} saniye soğuma bekleniyor...")
+            await asyncio.sleep(sleep_time) # Kodun geri kalanını bloklamadan bekle
+        
+        # Zamanı güncelle
+        self.last_request_time = time.time()
+
+    def _clean_thinking(self, text):
+        """
+        Modelin <think>...</think> arasındaki sesli düşünme kısımlarını temizler.
+        """
+        if not text:
+            return ""
+        
+        # re.DOTALL: Nokta (.) karakterinin yeni satırları da kapsamasını sağlar.
+        # Böylece çok satırlı düşünme blokları da silinir.
+        pattern = r"<think>.*?</think>"
+        cleaned_text = re.sub(pattern, "", text, flags=re.DOTALL)
+        
+        return cleaned_text.strip()
+
+    async def _submit_to_llm(self, prompt, temperature=0.1, json_mode=True, max_tokens=1024, use_system_prompt=True, reasoning_mode="none"):
+        """
+        MERKEZİ LLM ÇAĞRI FONKSİYONU
+        Tekrarlanan kodları engellemek için tüm istekler buradan geçer.
+        """
         try:
-            # --- YOL AYRIMI ---
-            if self.use_gemini:
-                # 1. GEMINI YOLU
-                generation_config=types.GenerateContentConfig(
-                        response_mime_type="application/json", # JSON zorlama modu
-                        temperature=0.1,
-                    )
-                response = self.gemini_client.models.generate_content(
-                    model= os.getenv('GEMINI_MODEL'),
-                    contents = [self.system_instruction, user_prompt, news],
-                    config = generation_config
-                )
-                return json.loads(response.text)
+            # --- 1. Mesaj Listesini Temiz Oluştur ---
+            # Hatayı çözen kısım burası: Listeye None eklemiyoruz.
+            messages_payload = []
             
-            else:
-                # 2. OLLAMA YOLU
-                # Ollama için system prompt'u user prompt'un içine eklememiz gerekebilir 
-                # (eğer modelfile kullanmıyorsak). Ama sen modelfile kullandığın için
-                # system prompt zaten modelin içinde var.
-                res = await asyncio.to_thread(
-                    ollama.chat, 
-                    model=self.ollama_model,
-                    messages=[{'role': 'user', 'content': user_prompt}],
-                    format='json', 
-                    options={'temperature': 0.1},
-                    keep_alive=-1 # 5 dakika açık tut
+            if use_system_prompt:
+                messages_payload.append({"role": "system", "content": llm_config['system_prompt']})
+            
+            messages_payload.append({"role": "user", "content": prompt})
+
+            # --- A. OPENROUTER / GROQ ---
+            if self.use_groqcloud:
+                completion = await self.client.chat.completions.create(
+                    model=self.model,
+                    messages=messages_payload, # Temiz liste
+                    response_format={"type": "json_object"} if json_mode else None,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    reasoning_effort=reasoning_mode
                 )
-                return json.loads(res['message']['content'])
+                raw_response = completion.choices[0].message.content
+                cleaned_response = self._clean_thinking(raw_response)
+                return cleaned_response
+            # --- B. OLLAMA ---
+            else:
+                options = {
+                    'temperature': temperature,
+                    'num_ctx': 512, 
+                    'num_predict': 128 if not json_mode else 32
+                }
+                res = await asyncio.to_thread(
+                    ollama.chat,
+                    model=self.ollama_model,
+                    messages=messages_payload, # Temiz liste
+                    format='json' if json_mode else '',
+                    options=options,
+                    keep_alive=-1
+                )
+                return res['message']['content']
 
         except Exception as e:
-            print(f"❌ [BEYİN HATASI] Analiz başarısız: {e}")
-            return {"trades": []}
-        
+            print(f"❌ [HATA] LLM İsteği Başarısız: {e}")
+            return None
+
     async def analyze_specific(self, news, symbol, price, changes, search_context="", coin_full_name="Unknown"):
-        # 1. Önce coinin profilini çek (Cache'den veya Web'den)
+        # 1. Profil Bilgisi
+        await self._wait_for_rate_limit()
         coin_category = await self.get_coin_profile(symbol)
-        current_time_str= datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    # --- DEBUG LOGU (Bunu konsolda görmek istiyorum) ---
+        current_time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
         print(f"🐛 [DEBUG] {symbol} Kategorisi: '{coin_category}'")
+        print(f"🐛 [DEBUG] Fiyat: {price}, Değişimler: {changes}")
+
         prompt = f"""
         TARGET COIN: {symbol.upper()}
         COIN FULL NAME: {coin_full_name}
@@ -176,32 +189,14 @@ class AgentBrain:
         }}
         """
 
-        #prices debug
-        print(f"🐛 [DEBUG] Fiyat: {price}, Değişimler: {changes}")
+        response_text = await self._submit_to_llm(prompt, temperature=0.1, json_mode=True, max_tokens=2048, use_system_prompt=True, reasoning_mode="default")
+        
         try:
-            if self.use_gemini:
-                response = await self.gemini_client.generate_content_async(prompt)
-                return json.loads(response.text)
-            else:
-                res = await asyncio.to_thread(
-                    ollama.chat, 
-                    model=self.ollama_model,
-                    messages=[{'role': 'user', 'content': prompt}],
-                    format='json', 
-                    options={'temperature': 0.1},
-                    keep_alive=-1 # 5 dakika açık tut
-                )
-                return json.loads(res['message']['content'])
-        except Exception as e:
-            print(f"[HATA] LLM Analizi: {e}")
-            return {"action": "HOLD", "confidence": 0, "reason": "Error"}
-        
+            return json.loads(response_text)
+        except Exception:
+            return {"action": "HOLD", "confidence": 0, "reason": "Error parsing JSON"}
+
     async def detect_symbol(self, news, available_pairs):
-        """
-        Regex başarısız olduğunda LLM'den sembol bulmasını ister.
-        """
-        # Sadece coin listesini string yap (USDT olmadan)
-        
         prompt = f"""
         TASK: Identify which cryptocurrency symbol is most impacted by this news.
         NEWS: "{news}"
@@ -220,33 +215,17 @@ class AgentBrain:
             "symbol": "BTC" | null
         }}
         """
-        try:
-            # Gemini veya Ollama kullanımı (Mevcut yapına göre)
-            if hasattr(self, 'gemini_client') and self.use_gemini:
-                response = await self.gemini_client.generate_content_async(prompt)
-                res_json = json.loads(response.text)
-            else:
-                res = await asyncio.to_thread(
-                    ollama.chat, 
-                    model=self.ollama_model,
-                    messages=[{'role': 'user', 'content': prompt}],
-                    format='json', 
-                    options={'temperature': 0.0, 'num_ctx': 512, 'num_predict': 32} ,
-                    keep_alive=-1 # Sıfır yaratıcılık
-                )
-                res_json = json.loads(res['message']['content'])
-            
-            return res_json.get('symbol')
-            
-        except Exception as e:
-            print(f"[HATA] Sembol Tespiti: {e}")
-            return None
         
+        response_text = await self._submit_to_llm(prompt, temperature=0.0, json_mode=True, max_tokens=16, use_system_prompt=False)
+        
+        try:
+            res_json = json.loads(response_text)
+            return res_json.get('symbol')
+        except Exception as e:
+            print(f"[HATA] Sembol Tespiti JSON hatası: {e}")
+            return None
+
     async def generate_search_query(self, news, symbol):
-        """
-        Haberi analiz eder ve araştırmacı gazeteci gibi sorgu üretir.
-        """
-        # Papağanlığı kırmak için "Reasoning" (Mantık Yürütme) istiyoruz.
         prompt = f"""
         ACT AS A CRYPTO INVESTIGATOR.
         
@@ -267,56 +246,28 @@ class AgentBrain:
         OUTPUT FORMAT: Just the search query string. Nothing else.
         """
         
-        try:
-            if self.use_gemini:
-                # Gemini'nin ayarlarını bu çağrı için özel olarak değiştiriyoruz
-                # temperature=0.7 -> Yaratıcılığı artırır, papağanlığı azaltır.
-                generation_config = genai.types.GenerationConfig(temperature=0.7) 
-                response = await self.gemini_client.generate_content_async(prompt, generation_config=generation_config)
-                return response.text.strip().replace('"', '')
-            else:
-                res = await asyncio.to_thread(
-                    ollama.chat, 
-                    model=self.ollama_model,
-                    messages=[{'role': 'user', 'content': prompt}],
-                    # Ollama için de sıcaklığı artırıyoruz
-                    options={'temperature': 0.7, 'num_ctx': 512, 'num_predict': 32} ,
-                    keep_alive=-1 # Sıfır yaratıcılık
-                )
-                return res['message']['content'].strip().replace('"', '')
-        except Exception as e:
-            print(f"[HATA] Sorgu Üretme: {e}")
-            return f"{news[:20]} scam check"
-        
+        # Sıcaklığı biraz artırıyoruz (0.7)
+        response_text = await self._submit_to_llm(prompt, temperature=0.7, json_mode=False, max_tokens=64, use_system_prompt=False, reasoning_mode="none")
+        return response_text.strip()
+
     async def get_coin_profile(self, symbol):
-        """
-        Coinin ne olduğunu (Meme, L1, AI, Stablecoin) hızlıca öğrenir.
-        """
         sym = symbol.upper().replace('USDT', '')
         
-        # 1. HIZLI LİSTE (Hardcoded Memory)
-        # coin_categories sözlüğünü buraya veya sınıfın tepesine yapıştır
-        # (Yukarıdaki uzun listeyi buraya koy)
-        
+        # 1. HIZLI LİSTE
         if sym in coin_categories:
             return coin_categories[sym]
 
-        # 2. CACHE KONTROLÜ (Daha önce arattık mı?)
-        if not hasattr(self, 'coin_cache'):
-            self.coin_cache = {}
-        
+        # 2. CACHE KONTROLÜ
         if sym in self.coin_cache:
             return self.coin_cache[sym]
 
-        # 3. BİLİNMEYEN COINLER İÇİN İNTERNET ARAMASI (Fallback)
-        # Burası sadece listede olmayan yeni/küçük coinler için çalışır
+        # 3. INTERNET ARAMASI & LLM
         print(f"🔍 [BEYİN] {sym} bilinmiyor, internetten öğreniliyor...")
         query = f"what is {sym} crypto category sector utility"
+        
         try:
-            # DuckDuckGo araması (utils.py'dan search_web_sync fonksiyonunu kullan)
             search_text = await asyncio.to_thread(search_web_sync, query)
             
-            # LLM'e sorma kısmı (Senin mevcut kodun)
             profile_prompt = f"""
             DATA: {search_text}
             TASK: Classify {sym} into ONE category.
@@ -324,21 +275,12 @@ class AgentBrain:
             OUTPUT: Just the category name.
             """
             
-            if self.use_gemini:
-                resp = await self.gemini_client.generate_content_async(profile_prompt)
-                category = resp.text.strip()
-            else:
-                res = await asyncio.to_thread(
-                    ollama.chat, 
-                    model=self.ollama_model,
-                    messages=[{'role': 'user', 'content': profile_prompt}],
-                    options={'temperature': 0.0,  'num_ctx': 128, 'num_predict': 16},
-                    keep_alive=-1 # Sıfır yaratıcılık
-                )
-                category = res['message']['content'].strip()
+            # Burada JSON mode kapalı olabilir çünkü sadece tek kelime istiyoruz
+            category = await self._submit_to_llm(profile_prompt, temperature=0.0, json_mode=False, max_tokens=256, use_system_prompt=False)
+            category = category.strip()
             
             # Cache'e kaydet
-            self.coin_cache[symbol] = category
+            self.coin_cache[sym] = category
             print(f"🧬 [PROFİL] {symbol} sınıflandırıldı: {category}")
             return category
 

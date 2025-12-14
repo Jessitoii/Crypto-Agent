@@ -18,9 +18,15 @@ from binance_client import BinanceExecutionEngine
 from data_collector import TrainingDataCollector
 from dataset_manager import DatasetManager
 from utils import get_top_pairs, get_top_100_map, perform_research
+from news_memory import NewsMemory
+from rss_listener import RSSMonitor
 
 # --- AYARLAR ---
 load_dotenv()
+# AYARLAR
+USE_GROQCLOUD = True  # <-- Yeni Patron
+GROQCLOUD_API_KEY = os.getenv('GROQCLOUD_API_KEY') # OpenRouter'dan aldığın Key
+GROQCLOUD_MODEL = os.getenv('GROQCLOUD_MODEL', 'google/gemini-2.0-flash-exp:free') # Kullanılacak model
 
 # GÜVENLİK AYARLARI
 USE_MAINNET = True # True = Gerçek Para, False = Testnet
@@ -61,7 +67,11 @@ class State:
 app_state = State()
 market_memory = defaultdict(PriceBuffer)
 exchange = PaperExchange(STARTING_BALANCE)
-brain = AgentBrain() 
+brain = AgentBrain(
+    use_groqcloud=USE_GROQCLOUD, 
+    api_key=GROQCLOUD_API_KEY, 
+    groqcloud_model=GROQCLOUD_MODEL
+)
 real_exchange = BinanceExecutionEngine(API_KEY, API_SECRET, testnet=IS_TESTNET)
 collector = TrainingDataCollector()
 dataset_manager = DatasetManager()
@@ -69,6 +79,7 @@ telegram_client = TelegramClient(TELETHON_SESSION_NAME, API_ID, API_HASH)
 log_container = None # UI referansı
 # ... (Diğer global nesneler) ...
 stream_command_queue = asyncio.Queue() # Websocket'e emir gönderme kanalı
+news_memory = NewsMemory()
 # --- YARDIMCILAR ---
 def log_ui(message, type="info"):
     timestamp = time.strftime("%H:%M:%S")
@@ -142,6 +153,17 @@ IGNORE_KEYWORDS = ['daily', 'digest', 'recap', 'summary', 'analysis', 'price ana
 async def process_news(msg, source="TELEGRAM"):
     start_time = time.time()
     if not app_state.is_running: return
+
+    is_dup, score = news_memory.is_duplicate(msg)
+
+    if is_dup:
+        # Eğer RSS ve Telegram aynı haberi attıysa, ikincisini yoksay.
+        log_ui(f"♻️ [TEKRAR] Haber engellendi (Benzerlik: {score:.2f})", "warning")
+        return
+
+    # 2. Haberi Hafızaya Kaydet (İşlemeye başlamadan önce kaydet ki tekrar gelirse yakalansın)
+    news_memory.add_news(source, msg)
+    
 
     clean_msg = msg.replace("— link", "").replace("Link:", "")
     msg_lower = clean_msg.lower()
@@ -466,6 +488,9 @@ async def start_tasks():
 
     else:
         log_ui("⚠️ Gerçek İşlem Kapalı (Paper Trading Modu)", "warning")
+    
+    rss_bot = RSSMonitor(callback_func=process_news)
+    asyncio.create_task(rss_bot.start_loop()) # Arka planda çalışır
     asyncio.create_task(websocket_loop())
     asyncio.create_task(telegram_loop())
     asyncio.create_task(collector_loop())
