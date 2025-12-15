@@ -4,7 +4,7 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 # BURALARI DOLDUR
-API_ID = os.getenv('API_ID')
+API_ID = int(os.getenv('API_ID'))
 API_HASH = os.getenv('API_HASH')
 TELETHON_SESSION_NAME = os.getenv('TELETHON_SESSION_NAME')
 
