@@ -1,11 +1,12 @@
 from telethon import TelegramClient
 import asyncio
 import os
-
+from dotenv import load_dotenv
+load_dotenv()
 # BURALARI DOLDUR
-API_ID = 33059879
-API_HASH = 'aac2748df0bff64aadcdc7692588b75b'
-TELETHON_SESSION_NAME = 'crypto_agent_session'
+API_ID = os.getenv('API_ID')
+API_HASH = os.getenv('API_HASH')
+TELETHON_SESSION_NAME = os.getenv('TELETHON_SESSION_NAME')
 
 async def main():
     path = os.path.realpath(__file__)
