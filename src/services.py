@@ -279,7 +279,7 @@ async def websocket_loop(ctx):
 async def telegram_loop(ctx):
     ctx.log_ui("Telegram Bağlanıyor...", "info")
     try:
-        await ctx.telegram_client.connect()
+        await ctx.telegram_client.start()
 
         print("CONNECTED:", ctx.telegram_client.is_connected())
         print("AUTHORIZED:", await ctx.telegram_client.is_user_authorized())
@@ -300,7 +300,7 @@ async def telegram_loop(ctx):
 
     except Exception as e:
         ctx.log_ui(f"❌ Telegram Hatası: {e}", "error")
-        
+
 async def collector_loop(ctx):
     ctx.log_ui("Data Collector Active 💾", "success")
     while True:
