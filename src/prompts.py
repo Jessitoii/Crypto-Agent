@@ -82,9 +82,15 @@ ANALYZE_SPECIFIC_PROMPT = """
          - If news talks about "Yesterday", "Last Week", or a specific date that is NOT today (e.g., News date is Dec 9, Today is Dec 10) -> THIS IS STALE DATA.
          - STALE DATA ACTION: HOLD (Do not trade old news).
          - Exception: Unless it mentions "Upcoming" or "Future" events for that date.
-        4. DUPLICATE NARRATIVE CHECK: 
-         - Is this news talking about an event (e.g. JPMorgan/Ethereum) that happened hours ago? 
-         - IF YES -> ACTION: HOLD (Do not trade recycled news).
+        4. VERB TENSE & RECAP FILTER (THE "HISTORY TEACHER" CHECK):
+           - DOES THE NEWS REPORT WHAT *ALREADY* HAPPENED? 
+             (Keywords: "Dropped", "Fell", "Declined", "Slid", "Closed", "Reports", "Review")
+           - IF YES AND No New Catalyst (No "Hack", "SEC", "Ban") -> ACTION: HOLD.
+           - REASON: "News is a market recap of past price action. The move is over."
+
+        5. CHASING DUMPS (DON'T SHORT THE FLOOR):
+           - IF Price Change (24h) < -5.0% AND News is generic ("Market decline", "Technical breakdown") -> ACTION: HOLD.
+           - RULE: Never short a coin that is already down 5% unless there is a CATASTROPHE (Hack/Rugpull).
         
         TRADING LOGIC (PRIORITY 2):
         A. SHORT SIGNALS (Don't be afraid to short):

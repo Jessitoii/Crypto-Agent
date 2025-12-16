@@ -64,8 +64,12 @@ LEVERAGE = 10
 FIXED_TRADE_AMOUNT = 8
 
 # --- Filter Constants ---
-IGNORE_KEYWORDS = ['daily', 'digest', 'recap', 'summary', 'analysis', 'price analysis', 'prediction', 'overview', 'roundup']
-
+IGNORE_KEYWORDS = [
+    'daily', 'digest', 'recap', 'summary', 'analysis', 'price analysis', 
+    'prediction', 'overview', 'roundup', 'market wrap', 'outlook', 
+    'forecast', 'top gainer', 'top loser', 'market update',
+    'slides', 'declines', 'drops', 'plummet' # <-- Bunlar başlıkta geçiyorsa genelde özettir
+]
 DANGEROUS_TICKERS = {
     'S', 'THE', 'A', 'I', 'IS', 'TO', 'IT', 'BY', 'ON', 'IN', 'AT', 'OF', 
     'ME', 'MY', 'UP', 'DO', 'GO', 'OR', 'IF', 'BE', 'AS', 'WE', 'SO',
