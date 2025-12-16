@@ -5,6 +5,8 @@ import time
 import os
 from nicegui import ui, app
 from telethon import TelegramClient
+import threading
+
 
 # Modules
 from config import (
@@ -52,7 +54,7 @@ path = os.path.realpath(__file__)
 dir = os.path.dirname(path)
 dir = dir.replace('src', 'data')
 os.chdir(dir)
-SESSION_PATH = os.path.join(dir, 'crypto_agent_session.session')
+SESSION_PATH = os.path.join(dir, 'crypto_agent_session')
 print("CWD:", os.getcwd())
 print("SESSION_PATH:", SESSION_PATH)
 print("SESSION EXISTS:", os.path.exists(SESSION_PATH))
@@ -106,7 +108,6 @@ async def start_tasks():
     #asyncio.create_task(services.rss_loop(ctx)) # RSS Loopü devre dışı bırakıldı
     asyncio.create_task(services.websocket_loop(ctx))
     asyncio.create_task(services.collector_loop(ctx))
-    asyncio.create_task(services.telegram_loop(ctx))
 
 # --- UI ENTRY POINT ---
 @ui.page('/') 
@@ -121,5 +122,10 @@ def index():
         on_manual_submit=manual_news_handler
     )
 
+
 app.on_startup(start_tasks)
+def start_telegram_thread():
+    asyncio.run(services.telegram_loop(ctx))
+
+threading.Thread(target=start_telegram_thread, daemon=True).start()
 ui.run(title="Crypto AI", host="0.0.0.0", dark=True, port=8080, reload=False)
