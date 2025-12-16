@@ -12,7 +12,6 @@ TELETHON_SESSION_NAME = os.getenv('TELETHON_SESSION_NAME')
 telegram_client = TelegramClient(TELETHON_SESSION_NAME, API_ID, API_HASH)
 
 async def Main():
-    await telegram_client.connect()
     me = await telegram_client.get_me()
     print(me)
 
