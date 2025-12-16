@@ -53,6 +53,7 @@ dir = os.path.dirname(path)
 dir = dir.replace('src', 'data')
 os.chdir(dir)
 SESSION_PATH = os.path.join(dir, 'crypto_agent_session')
+print(f"SESSION_PATH: {SESSION_PATH}")
 ctx.telegram_client = TelegramClient(SESSION_PATH, API_ID, API_HASH, use_ipv6=False, timeout=10)
 ctx.stream_command_queue = None
 ctx.news_memory = NewsMemory()

@@ -174,7 +174,7 @@ async def process_news(msg, source, ctx):
         ctx.collector.log_decision(msg, pair, stats.current_price, str(changes), dec)
         
         if dec['confidence'] >= 75 and dec['action'] in ['LONG', 'SHORT']:
-            trade_amount = FIXED_TRADE_AMOUNT
+            trade_amount = (ctx.exchange.balance / 2)
             leverage = LEVERAGE
             tp_pct = dec.get('tp_pct', 2.0)
             sl_pct = dec.get('sl_pct', 1.0)
@@ -202,7 +202,7 @@ async def process_news(msg, source, ctx):
             if can_open_paper_trade:
                 log, color = ctx.exchange.open_position(
                     symbol=pair, side=dec['action'], price=stats.current_price, 
-                    tp_pct=tp_pct, sl_pct=sl_pct, amount_usdt=trade_amount, 
+                    tp_pct=tp_pct, sl_pct=sl_pct, amount_usdt=(ctx.exchange.balance / 2), 
                     leverage=leverage, validity=validity, app_state=ctx.app_state,
                 )
                 full_log = log + f'\nSrc: {source}\nReason: {dec.get("reason")}\nNews: {msg}'
@@ -282,7 +282,7 @@ async def telegram_loop(ctx):
     ctx.log_ui("Telegram Bağlanıyor...", "info")
     try:
         await ctx.telegram_client.connect()
-        
+        await send_telegram_alert(ctx, "Telegram Bağlandı ✅")
         # Oturum kontrolü
         if not await ctx.telegram_client.is_user_authorized():
             ctx.log_ui("❌ TELEGRAM OTURUMU YOK! 'crypto_agent_session.session' dosyası eksik veya geçersiz.", "error")
