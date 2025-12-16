@@ -4,6 +4,7 @@ import os
 import sys
 from telethon import TelegramClient
 from dotenv import load_dotenv
+from services import send_telegram_alert
 
 # 1. LOGLARI FULLE (DEBUG MODU)
 # Bu sayede "Connect" derken arka planda ne döndüğünü göreceğiz.
@@ -24,6 +25,7 @@ dir = os.path.dirname(path)
 dir = dir.replace('src', 'data')
 os.chdir(dir)
 SESSION_PATH = os.path.join(dir, SESSION_NAME)
+
 
 async def main():
     print(f"--- 🕵️‍♂️ DERİN ANALİZ BAŞLIYOR ---")
@@ -46,6 +48,7 @@ async def main():
         # Bağlantı denemesi
         await client.connect()
         
+        await send_telegram_alert("Telegram Debug", "Telegram Debug")
         if client.is_connected():
             print("\n✅ BAĞLANTI BAŞARILI! (Sorun IPv6 veya Timeout olabilirmiş)")
             me = await client.get_me()
