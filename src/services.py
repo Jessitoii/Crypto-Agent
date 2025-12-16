@@ -282,6 +282,8 @@ async def telegram_loop(ctx):
     ctx.log_ui("Telegram Bağlanıyor...", "info")
     try:
         await ctx.telegram_client.connect()
+        print("CONNECTED:", ctx.telegram_client.is_connected())
+        print("AUTHORIZED:", await ctx.telegram_client.is_user_authorized())
         await send_telegram_alert(ctx, "Telegram Bağlandı ✅")
         # Oturum kontrolü
         if not await ctx.telegram_client.is_user_authorized():
