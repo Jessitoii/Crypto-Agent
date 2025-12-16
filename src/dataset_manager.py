@@ -3,19 +3,6 @@ import os
 
 class DatasetManager:
     def __init__(self, filename="training_dataset.jsonl"):
-        path = os.path.realpath(__file__)
-
-        # gives the directory where demo.py 
-        # exists
-        dir = os.path.dirname(path)
-
-        # replaces folder name of Sibling_1 to 
-        # Sibling_2 in directory
-        dir = dir.replace('src', 'data')
-
-        # changes the current directory to 
-        # Sibling_2 folder
-        os.chdir(dir)
         self.filename = filename
         # Açık işlemleri burada tutacağız: { 'BTCUSDT': { 'news': '...', 'input_data': '...', 'ai_response': ... } }
         self.open_trades = {}

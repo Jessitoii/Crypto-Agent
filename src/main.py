@@ -26,6 +26,18 @@ from news_memory import NewsMemory
 from dashboard import create_dashboard
 import services
 
+path = os.path.realpath(__file__)
+dir = os.path.dirname(path)
+dir = dir.replace('src', 'data')
+os.chdir(dir)
+
+SESSION_PATH = os.path.join(dir, 'crypto_agent_session')
+print("CWD:", os.getcwd())
+print("SESSION_PATH:", SESSION_PATH)
+print("SESSION EXISTS:", os.path.exists(SESSION_PATH))
+print("SESSION FILES:", os.listdir(os.path.dirname(SESSION_PATH)))
+print("API_ID:", API_ID)
+
 # --- GLOBAL STATE CONTAINER ---
 class BotContext:
     def __init__(self):
@@ -50,10 +62,6 @@ ctx.brain = AgentBrain(
 ctx.real_exchange = BinanceExecutionEngine(API_KEY, API_SECRET, testnet=IS_TESTNET)
 ctx.collector = TrainingDataCollector()
 ctx.dataset_manager = DatasetManager()
-path = os.path.realpath(__file__)
-dir = os.path.dirname(path)
-dir = dir.replace('src', 'data')
-os.chdir(dir)
 SESSION_PATH = os.path.join(dir, 'crypto_agent_session')
 print("CWD:", os.getcwd())
 print("SESSION_PATH:", SESSION_PATH)
@@ -108,7 +116,7 @@ async def start_tasks():
     #asyncio.create_task(services.rss_loop(ctx)) # RSS Loopü devre dışı bırakıldı
     asyncio.create_task(services.websocket_loop(ctx))
     asyncio.create_task(services.collector_loop(ctx))
-
+    asyncio.create_task(services.telegram_loop(ctx))
 # --- UI ENTRY POINT ---
 @ui.page('/') 
 def index():
@@ -124,8 +132,4 @@ def index():
 
 
 app.on_startup(start_tasks)
-def start_telegram_thread():
-    asyncio.run(services.telegram_loop(ctx))
-
-threading.Thread(target=start_telegram_thread, daemon=True).start()
 ui.run(title="Crypto AI", host="0.0.0.0", dark=True, port=8080, reload=False)
