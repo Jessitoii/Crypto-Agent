@@ -122,13 +122,39 @@ async def process_news(msg, source, ctx):
 
     for pair in detected_pairs:
         stats = ctx.market_memory[pair]
+        
+        # --- ZOMBİ VERİ KONTROLÜ (MENTÖR DÜZELTMESİ) ---
+        # Verinin bayat olup olmadığını kontrol et (Son mum 5 dakikadan eskiyse bayattır)
+        is_stale = False
+        current_minute = int(time.time() / 60)
+        
         if stats.current_price == 0:
-            ctx.log_ui(f"⚠️ {pair} Backfill yapılıyor...", "warning")
+            is_stale = True
+        elif stats.candles:
+            last_candle_time = stats.candles[-1][0] # PriceBuffer'da dakika olarak tutuluyor
+            # Eğer son veri 3 dakikadan eskiyse (WebSocket dinlemiyor demektir)
+            if (current_minute - last_candle_time) > 3:
+                is_stale = True
+        else:
+            is_stale = True
+
+        if is_stale:
+            ctx.log_ui(f"⚠️ {pair} Verisi Bayat/Yok. Taze veri çekiliyor...", "warning")
+            # missing data -> (candles list, 24h_change)
             hist_data, chg_24h = await ctx.real_exchange.fetch_missing_data(pair)
+            
             if hist_data:
-                for c, t in hist_data: stats.update_candle(c, t, True)
+                # Hafızayı temizle ve tazele
+                stats.candles.clear()
+                for c, t in hist_data: 
+                    stats.update_candle(c, t, True)
                 stats.set_24h_change(chg_24h)
-            else: continue
+                # Current price'ı da son mumun kapanışına eşitle ki 0 kalmasın
+                if hist_data:
+                    stats.current_price = hist_data[-1][0]
+            else: 
+                ctx.log_ui(f"❌ {pair} verisi çekilemedi, analiz iptal.", "error")
+                continue
 
         smart_query = await ctx.brain.generate_search_query(msg, pair.replace('usdt',''))
         ctx.log_ui(f"🌍 Araştırılıyor: '{smart_query}'", "info")
@@ -169,6 +195,11 @@ async def process_news(msg, source, ctx):
             cap_str = "UNKNOWN/SMALL"
 
         changes = stats.get_all_changes()
+
+        log_txt(f"🔍 Analiz Fiyatı ({pair}): {stats.current_price}")
+        ctx.log_ui(f"🔍 Analiz Fiyatı ({pair}): {stats.current_price}", "info")
+
+
         volume_24h, funding_rate = await ctx.real_exchange.get_extended_metrics(pair)
         dec = await ctx.brain.analyze_specific(msg, pair, stats.current_price, changes, search_res, coin_full_name, cap_str, rsi_val, btc_trend, volume_24h, funding_rate)
         ctx.collector.log_decision(msg, pair, stats.current_price, str(changes), dec)

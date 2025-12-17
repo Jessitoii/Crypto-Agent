@@ -18,28 +18,45 @@ PHASE 1: FILTER (The "Garbage" Check)
 -   **Priced In:** If news is "Record Breaking" but price is already up 5% -> **HOLD** (or SHORT scalps).
 
 PHASE 2: IMPACT ANALYSIS (The "So What?" Check)
--   **Market Cap Weight:** A $10M investment moves a MEME coin, but is invisible for ETH/BTC.
--   **BTC Correlation:** Never LONG if Bitcoin is dumping (-1% in 1h). Never SHORT if Bitcoin is flying.
+-   **Market Cap Weight:** A $10M investment moves a MEME coin, but is invisible for ETH/BTC. Evaluate dollar amounts relative to Market Cap.
+-   **MAGNITUDE SCALING:** - "Partnership" -> Low Impact (TP ~1%)
+    - "Listing / Mainnet" -> Medium Impact (TP ~2%)
+    - "SEC / Hack / Fed Rates / ETF" -> HIGH Impact (TP ~4%+)
 
 PHASE 3: TRAP DETECTION (The "Liquidity" Check)
 -   **RSI Extremes:** RSI > 75 is a "No Buy Zone" (wait for dip). RSI < 25 is a "No Sell Zone".
 -   **Funding Rates:** High Positive Funding (>0.02%) means Longs are crowded -> Expect a Squeeze (Dump).
 -   **Volume Divergence:** Price up + Volume Down = Fake Pump.
 
-PHASE 4: EXECUTION
--   **Direction:** Match the News Sentiment ONLY if Technicals agree.
--   **Take Profit:** Aggressive (1.5% - 4.0%).
--   **Stop Loss:** Tight (0.5% - 1.5%).
--   **Validity:** Max 30 minutes.
+PHASE 4: DYNAMIC EXECUTION (THE "SMART EXIT" LOGIC)
 
-### JSON OUTPUT FORMAT (STRICT):
+A. BASE SCALP TARGETS (Normal volatility):
+   - Standard Good News: TP 0.8% - 1.5% | SL 0.5%
+   - Standard Bad News:  TP 0.8% - 1.5% | SL 0.5%
+
+B. "NUCLEAR" TARGETS (Extreme Catalyst + High Volume):
+   - CONDITIONS: 
+     1. News is MAJOR (e.g. "SEC Approval", "Hack Confirmed", "Binance Listing", "Elon Musk Tweet").
+     2. Volume is SPIKING (High).
+     3. RSI is NOT yet extreme (<70 for Long, >30 for Short).
+   - ACTION: EXPAND TARGETS.
+   - Target: TP 2.5% - 5.0% | SL 1.5% (Give room to breathe).
+
+C. STOP LOSS STRATEGY:
+   - Always tight. If the thesis is wrong, get out fast. Max SL is 1.5% even for nuclear trades.
+
+JSON OUTPUT RULES:
+- If confidence > 85 AND News is "Major": Set 'tp_pct' higher (e.g. 3.5).
+- If confidence < 75 OR News is "Minor": Set 'tp_pct' conservative (e.g. 0.8).
+
+JSON OUTPUT STRUCTURE (STRICT):
 {
   "action": "LONG" | "SHORT" | "HOLD",
   "confidence": <integer 0-100>,
   "tp_pct": <float>,
   "sl_pct": <float>,
   "validity_minutes": <integer 5-30>,
-  "reason": "Clear & concise explanation of why you acted or passed."
+  "reason": "Explain WHY you chose this TP. E.g. 'Major hack news implies deep dump, aiming for 4% drop.'"
 }"""
 
 # Analysis Prompt: Dinamik Veri ve Bağlamsal Analiz
@@ -94,9 +111,9 @@ ANALYZE_SPECIFIC_PROMPT = """
 
 **STEP 4: FINALIZE DECISION**
 -   Return your decision in JSON format.
+-   Apply the DYNAMIC EXECUTION rules from System Prompt to determine 'tp_pct'.
 -   Reason must explicitly mention why you passed (e.g. "RSI too high", "Old news", "Impact too low").
 """
-
 
 # Symbol Detection Prompt (Template)
 DETECT_SYMBOL_PROMPT = """
