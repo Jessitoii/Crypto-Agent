@@ -1,6 +1,6 @@
 import json
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from groq import AsyncGroq
 import ollama
 import time
@@ -123,8 +123,7 @@ class AgentBrain:
         # 1. Profile Info
         await self._wait_for_rate_limit()
         coin_category = await self.get_coin_profile(symbol)
-        current_time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
+        current_time_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
         print(f"🐛 [DEBUG] {symbol} Category: '{coin_category}'")
         print(f"🐛 [DEBUG] Price: {price}, Changes: {changes}")
 

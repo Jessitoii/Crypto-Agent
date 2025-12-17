@@ -26,6 +26,7 @@ from news_memory import NewsMemory
 from dashboard import create_dashboard
 import services
 
+#Path Fix
 path = os.path.realpath(__file__)
 dir = os.path.dirname(path)
 dir = dir.replace('src', 'data')
