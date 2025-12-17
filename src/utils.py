@@ -98,87 +98,89 @@ async def perform_research(query):
 def find_coins(msg, coin_map=None):
     """
     3 Aşamalı Coin Tespit Algoritması:
-    
-    1. DANGEROUS (THE, IS, A): 
-       - Sadece BÜYÜK HARF + BAĞLAM KELİMESİ varsa kabul et.
-       - Örn: "THE Protocol", "IS Token", "A Network".
-       - "This is a token" -> YAKALAMAZ.
-       
-    2. AMBIGUOUS (LINK, GAS, SUN): 
-       - Sadece BÜYÜK HARF (LINK) veya TAM İSİM (Chainlink) ise kabul et.
-       - "Click the link" -> YAKALAMAZ.
-       
-    3. NORMAL (BTC, ETH): 
-       - Esnek arama (Büyük/Küçük harf).
+    1. DANGEROUS (THE, IS, A): Sadece BÜYÜK HARF + BAĞLAM KELİMESİ.
+    2. AMBIGUOUS (LINK, GAS): Sadece BÜYÜK HARF veya TAM İSİM.
+    3. NORMAL (BTC, ETH): Esnek arama.
     """
-    
     if not msg:
         return []
 
-    # Harita yoksa oluştur
+    # --- ADIM 1: coin_map HAZIRLIĞI (Normalizasyon) ---
+    # Gelen harita karmaşık (dict içinde dict) olabilir. 
+    # Biz bunu sadece {SYMBOL: FullName} formatına indirgeyeceğiz.
+    
+    search_map = {}
+    
+    # A) Harita dışarıdan gelmediyse kendimiz oluşturalım
     if coin_map is None:
         try:
             from src.data_collector import get_top_100_map
             raw_map = get_top_100_map()
-            coin_map = {}
-            for name, data in raw_map.items():
-                if isinstance(data, dict):
-                    sym = data.get('symbol', '').upper()
-                    coin_map[sym] = name 
+            # Raw map'i işle
+            for k, v in raw_map.items():
+                if isinstance(v, dict):
+                    sym = v.get('symbol', '').upper()
+                    name = v.get('name', '')
+                    if sym: search_map[sym] = name
                 else:
-                    sym = str(data).upper()
-                    coin_map[sym] = name
+                    search_map[str(v).upper()] = k # Ters gelebilir dikkat
         except ImportError:
-            return []
+            search_map = {}
+            
+    # B) Harita dışarıdan geldiyse (TARGET_PAIRS gibi) formatı düzelt
+    else:
+        for k, v in coin_map.items():
+            if isinstance(v, dict):
+                # { 'btc': {'symbol': 'btc', 'name': 'Bitcoin'} } formatı
+                sym = v.get('symbol', '').upper()
+                name = v.get('name', '') # İsim yoksa boşver
+                if sym: search_map[sym] = name
+            else:
+                # { 'BTC': 'Bitcoin' } formatı (Eski usul)
+                search_map[str(k).upper()] = str(v)
 
+    # --- ADIM 2: TARAMA ---
     detected_pairs = set()
     ambiguous_upper = {k.upper(): v for k, v in AMBIGUOUS_COINS.items()}
-
-    # --- BAĞLAM KELİMELERİ (Koruma Kalkanı) ---
-    # Tehlikeli coinlerin yanında bunlardan biri ZORUNLU olacak.
-    # (Protocol, Network, Token, Coin, DAO, Chain, Finance, Labs, Foundation, Swap)
     context_pattern = r'(?:Protocol|Network|Token|Coin|DAO|Chain|Finance|Labs|Foundation|Swap)'
 
-    for symbol, full_name in coin_map.items():
+    for symbol, full_name in search_map.items():
         symbol_upper = symbol.upper()
         
-        # --- SENARYO 1: DANGEROUS TICKERS (THE, IS, A, TO) ---
-        # Kural: Ticker BÜYÜK HARF olacak + Yanında BAĞLAM kelimesi olacak.
+        # SENARYO 1: DANGEROUS TICKERS (THE, IS, A...)
         if symbol_upper in DANGEROUS_TICKERS:
-            # Regex Mantığı: \bTHE\s+(Protocol|Token...)\b
-            # Örnek: "THE Protocol" -> Eşleşir. "THE car" -> Eşleşmez. "the Protocol" -> Eşleşmez.
             strict_pattern = r'\b' + re.escape(symbol_upper) + r'\s+' + context_pattern + r'\b'
-            
-            if re.search(strict_pattern, msg): # re.IGNORECASE YOK!
+            if re.search(strict_pattern, msg): 
                 detected_pairs.add(symbol_upper + "USDT")
             continue 
 
-        # --- SENARYO 2: AMBIGUOUS COINS (LINK, GAS, SUN) ---
+        # SENARYO 2: AMBIGUOUS COINS (LINK, GAS...)
         elif symbol_upper in ambiguous_upper:
-            # 2a. Ticker Kontrolü (LINK): Sadece BÜYÜK HARF ise al (Bağlam şart değil ama Büyük harf şart)
+            # 2a. Ticker (LINK)
             if re.search(r'\b' + re.escape(symbol_upper) + r'\b', msg):
                 detected_pairs.add(symbol_upper + "USDT")
                 continue
             
-            # 2b. Tam İsim Kontrolü (Chainlink): Normal arama
+            # 2b. Tam İsim (Chainlink)
             special_full_name = ambiguous_upper[symbol_upper]
             if re.search(r'\b' + re.escape(special_full_name) + r'\b', msg, re.IGNORECASE):
                 detected_pairs.add(symbol_upper + "USDT")
             continue
 
-        # --- SENARYO 3: NORMAL COINLER (BTC, ETH) ---
+        # SENARYO 3: NORMAL COINLER
         else:
-            # Ticker (btc, BTC)
+            # Ticker
             if re.search(r'\b' + re.escape(symbol_upper) + r'\b', msg, re.IGNORECASE):
                 detected_pairs.add(symbol_upper + "USDT")
                 continue
             
-            # Tam İsim (bitcoin, Bitcoin)
-            if re.search(r'\b' + re.escape(full_name) + r'\b', msg, re.IGNORECASE):
-                detected_pairs.add(symbol_upper + "USDT")
+            # Tam İsim (Sadece isim doluysa ara)
+            if full_name and len(full_name) > 2:
+                if re.search(r'\b' + re.escape(full_name) + r'\b', msg, re.IGNORECASE):
+                    detected_pairs.add(symbol_upper + "USDT")
 
     return list(detected_pairs)
-
+    
 coin_categories = {
     # --- TOP 10 & MAJORS (Demirbaşlar) ---
     'BTC': 'Layer-1 (Store of Value)',

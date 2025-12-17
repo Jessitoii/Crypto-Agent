@@ -87,7 +87,7 @@ async def process_news(msg, source, ctx):
 
     if not detected_pairs:
         ctx.log_ui("⚠️ Regex bulamadı, Ajan'a soruluyor...", "warning")
-        found_symbol = await ctx.brain.detect_symbol(msg, )
+        found_symbol = await ctx.brain.detect_symbol(msg, TARGET_PAIRS)
         if found_symbol:
             pot_pair = f"{found_symbol.lower()}usdt"
             if pot_pair in TARGET_PAIRS:
