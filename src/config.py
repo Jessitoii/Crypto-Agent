@@ -75,3 +75,16 @@ DANGEROUS_TICKERS = {
     'ME', 'MY', 'UP', 'DO', 'GO', 'OR', 'IF', 'BE', 'AS', 'WE', 'SO',
     'NEAR', 'ONE', 'SUN', 'GAS', 'POL', 'BOND', 'OM', 'ELF', 'MEME', 'AI', 'MOVE', 'PUMP'
 }
+
+AMBIGUOUS_COINS = {
+    'link': 'Chainlink',
+    'one': 'Harmony',
+    'pol': 'Polygon',  # "Police" veya "Policy" içinde geçebilir
+    'gas': 'NeoGas',   # "Gas fees" içinde geçebilir
+    'sun': 'Sun',      # "Sunday" veya güneş anlamında geçebilir
+    'just': 'Just',    # "Just now" içinde geçebilir
+    'omg': 'OMG Network', # "Oh my god" kısaltması
+    'meme': 'Memecoin',   # Genel "meme" kelimesi
+    'beta': 'Beta Finance', # Yazılım betası
+    'iot': 'Helium IOT', # IoT teknolojisi
+}

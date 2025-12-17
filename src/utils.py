@@ -67,7 +67,7 @@ def get_top_100_map():
     except Exception as e:
         print(f"Hata oluştu: {e}")
         return {}
-        
+
 def search_web_sync(query):
     """DuckDuckGo üzerinde senkron arama yapar (Thread içinde çalışacak)"""
     try:
