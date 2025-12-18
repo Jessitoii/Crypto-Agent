@@ -125,16 +125,15 @@ async def start_tasks():
     asyncio.create_task(services.telegram_loop(ctx))
 # --- UI ENTRY POINT ---
 @ui.page('/') 
+@ui.page('/') 
 def index():
     async def manual_news_handler(text, source="MANUAL"):
         await services.process_news(text, source, ctx)
 
-    # Dashboard oluştururken hafızadaki logları (ctx.runtime_logs) parametre olarak gönder
+    # Dashboard'a artık 'ctx' nesnesini de gönderiyoruz
     ctx.log_container = create_dashboard(
-        app_state=ctx.app_state,
-        exchange=ctx.exchange,
-        on_manual_submit=manual_news_handler,
-        existing_logs=ctx.runtime_logs  # <--- YENİ PARAMETRE
+        ctx=ctx, # <--- YENİ: Tüm context'i gönder
+        on_manual_submit=manual_news_handler
     )
 
 

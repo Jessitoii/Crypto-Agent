@@ -5,6 +5,8 @@ class PaperExchange:
         self.balance = balance
         self.positions = {} 
         self.total_pnl = 0.0
+        self.history = []
+
 
     def open_position(self, symbol, side, price, amount_usdt, leverage, tp_pct, sl_pct, app_state, validity):
         if not app_state.is_running: return 
@@ -101,10 +103,31 @@ class PaperExchange:
             return log_msg, color, symbol, pnl, peak_price 
 
         return None, None, None, 0.0, 0.0
+    
     def close_position(self, symbol, reason, pnl):
         pos = self.positions[symbol]
+        
+        # Bakiye güncelle
         self.balance += self.positions[symbol]['margin'] + pnl
         self.total_pnl += pnl
+        
+        # --- YENİ: GEÇMİŞE KAYDET ---
+        trade_record = {
+            'symbol': symbol,
+            'side': pos['side'],
+            'entry': pos['entry'],
+            'exit': pos['current_price'],
+            'pnl': pnl,
+            'reason': reason,
+            'time': time.strftime("%H:%M:%S")
+        }
+        self.history.append(trade_record)
+        # -----------------------------
+
         del self.positions[symbol]
+        
         color = "success" if pnl > 0 else "error"
-        return f"🏁 KAPANDI: {symbol.upper()} ({reason}) | PnL: {pnl:.2f} USDT | Enter Price: {pos['entry']} | Close Price: {pos['current_price']} | Peak Seen: {pos.get('highest_price', pos['entry']) if pos['side'] == 'LONG' else pos.get('lowest_price', pos['entry'])}", color
+        # Peak price hesaplama (Safety check ile)
+        peak = pos.get('highest_price', pos['entry']) if pos['side'] == 'LONG' else pos.get('lowest_price', pos['entry'])
+        
+        return f"🏁 KAPANDI: {symbol.upper()} ({reason}) | PnL: {pnl:.2f} USDT | Enter: {pos['entry']} | Close: {pos['current_price']}", color

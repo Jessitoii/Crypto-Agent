@@ -1,6 +1,7 @@
 
 import os
 from dotenv import load_dotenv
+from utils import get_top_pairs
 # Import prompts into namespace to be used by other modules
 from prompts import (
     SYSTEM_PROMPT,
@@ -42,7 +43,7 @@ WEBSOCKET_URL = BASE_URL
 
 # --- Target Configuration ---
 TARGET_CHANNELS = ['cointelegraph', 'wublockchainenglish', 'CryptoRankNews', 'TheBlockNewsLite', 'coindesk', 'arkhamintelligence', 'glassnode'] 
-TARGET_PAIRS = []
+TARGET_PAIRS = get_top_pairs(100)
 
 RSS_FEEDS = [
     "https://cointelegraph.com/rss",
@@ -72,7 +73,7 @@ IGNORE_KEYWORDS = [
 DANGEROUS_TICKERS = {
     'S', 'THE', 'A', 'I', 'IS', 'TO', 'IT', 'BY', 'ON', 'IN', 'AT', 'OF', 
     'ME', 'MY', 'UP', 'DO', 'GO', 'OR', 'IF', 'BE', 'AS', 'WE', 'SO',
-    'NEAR', 'ONE', 'SUN', 'GAS', 'POL', 'BOND', 'OM', 'ELF', 'MEME', 'AI', 'MOVE', 'PUMP'
+    'NEAR', 'ONE', 'SUN', 'GAS', 'POL', 'BOND', 'OM', 'ELF', 'MEME', 'AI', 'MOVE', 'LINK', 'LİNK'
 }
 
 AMBIGUOUS_COINS = {
