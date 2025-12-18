@@ -14,6 +14,7 @@ from config import (
     REAL_TRADING_ENABLED, IGNORE_KEYWORDS,
     FIXED_TRADE_AMOUNT, LEVERAGE
 )
+from price_buffer import PriceBuffer
 
 TARGET_PAIRS = get_top_100_map()
 
@@ -309,7 +310,8 @@ async def websocket_loop(ctx):
                                         }
                                         await ctx.stream_command_queue.put(unsubscribe_msg)
                                         asyncio.create_task(update_system_balance(ctx, last_pnl=pnl))
-                        except Exception: pass
+                        except Exception as e:
+                            ctx.log_ui(f"WS Error: {e}", "error")
                 await asyncio.gather(sender(), receiver())
         except Exception as e:
             ctx.log_ui(f"WS Disconnected (5s): {e}", "error")
