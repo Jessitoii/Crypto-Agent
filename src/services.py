@@ -215,7 +215,7 @@ async def process_news(msg, source, ctx):
                 log_txt(full_log)
                 ctx.dataset_manager.log_trade_entry(
                     symbol=pair, news=msg, price_data=str(changes), 
-                    ai_decision=dec, search_context=search_text, entry_price=stats.current_price
+                    ai_decision=dec, search_context=search_res, entry_price=stats.current_price
                 )
                 asyncio.create_task(send_telegram_alert(ctx, full_log))
                 subscribe_msg = {
