@@ -45,6 +45,7 @@ class BotContext:
         self.is_running = True
         self.log_container = None
         self.runtime_logs = deque(maxlen=200)
+        self.ai_decisions = deque(maxlen=100)
 
 ctx = BotContext()
 

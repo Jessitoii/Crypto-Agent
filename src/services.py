@@ -201,8 +201,18 @@ async def process_news(msg, source, ctx):
         volume_24h, funding_rate = await ctx.real_exchange.get_extended_metrics(pair)
         dec = await ctx.brain.analyze_specific(msg, pair, stats.current_price, changes, search_res, coin_full_name, cap_str, rsi_val, btc_trend, volume_24h, funding_rate)
         ctx.collector.log_decision(msg, pair, stats.current_price, str(changes), dec)
-        
-        if dec['confidence'] >= 75 and dec['action'] in ['LONG', 'SHORT']:
+        decision_record = {
+            "time": datetime.datetime.now().strftime("%H:%M:%S"),
+            "symbol": pair.upper().replace('USDT', ''),
+            "action": dec.get('action', 'HOLD'),
+            "confidence": dec.get('confidence', 0),
+            "reason": dec.get('reason', 'N/A'),
+            "price": stats.current_price,
+            "news_snippet": msg[:60] + "..." # Haberin başı
+        }
+        # Hafızaya ekle (En başa ekle ki tabloda en üstte görünsün, ya da append yapıp ters çeviririz)
+        ctx.ai_decisions.append(decision_record)
+        if dec['confidence'] >= 65 and dec['action'] in ['LONG', 'SHORT']:
             trade_amount = (ctx.exchange.balance / 2)
             leverage = LEVERAGE
             tp_pct = dec.get('tp_pct', 2.0)
