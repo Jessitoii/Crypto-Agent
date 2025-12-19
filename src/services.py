@@ -504,9 +504,6 @@ async def websocket_loop(ctx):
                                 # 2. HAFIZA KONTROLÜ (KeyError Çözümü)
                                 # Eğer bu coin hafızada yoksa, anında oluştur!
                                 if pair not in ctx.market_memory:
-                                    # PriceBuffer sınıfını import et (Eğer yukarıda yoksa diye garantiye alıyoruz)
-                                    from src.price_buffer import PriceBuffer
-
                                     ctx.market_memory[pair] = PriceBuffer()
 
                                 # 3. HAFIZAYI GÜNCELLE
