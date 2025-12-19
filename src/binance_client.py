@@ -293,4 +293,4 @@ class BinanceExecutionEngine:
             
         except Exception as e:
             print(f"⚠️ [DEPTH HATA] {e}")
-            return 0.0, "Error"
+            return 0.0, f"Error {e}"

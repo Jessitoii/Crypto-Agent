@@ -23,7 +23,59 @@ def create_dashboard(ctx, on_manual_submit, existing_logs=None):
             ui.label('NEXUS AI TERMINAL').classes('text-h6 font-mono font-bold tracking-wider text-white')
         
         ui.space()
+        # --- PANIC BUTTON FONKSİYONU (YENİ) ---
+    async def panic_close_all():
+        """
+        ACİL DURUM PROSEDÜRÜ:
+        Tüm açık pozisyonları (Local + Binance) anında kapatır.
+        """
+        # 1. Açık pozisyon listesini al (Kopyasını alıyoruz çünkü döngüde silinecekler)
+        open_symbols = list(ctx.exchange.positions.keys())
         
+        if not open_symbols:
+            ui.notify("Kapatılacak açık pozisyon yok.", type="warning")
+            return
+
+        # Kullanıcıya bilgi ver
+        n = len(open_symbols)
+        ctx.log_ui(f"🚨 PANIC MODE TETİKLENDİ! {n} Pozisyon kapatılıyor...", "warning")
+        
+        for symbol in open_symbols:
+            try:
+                # Pozisyon verilerini al
+                pos = ctx.exchange.positions.get(symbol)
+                if not pos: continue
+                
+                # A) LOCAL (PAPER) KAPATMA
+                # Mevcut PnL ile kapat
+                pnl = pos.get('pnl', 0.0)
+                reason = "MANUAL PANIC CLOSE 🚨"
+                
+                # Exchange'den sil ve geçmişe kaydet
+                log_msg, color = ctx.exchange.close_position(symbol, reason, pnl)
+                ctx.log_ui(log_msg, color)
+                
+                # B) GERÇEK BORSA KAPATMA (Varsa)
+                if config.REAL_TRADING_ENABLED:
+                    try:
+                        await ctx.real_exchange.close_position_market(symbol)
+                        ctx.log_ui(f"✅ BINANCE: {symbol.upper()} Market Emriyle Kapatıldı.", "success")
+                    except Exception as e:
+                        ctx.log_ui(f"❌ BINANCE HATASI ({symbol}): {e}", "error")
+
+                # C) STREAM ABONELİĞİNİ İPTAL ET
+                # Gereksiz veri akışını kes
+                unsubscribe_msg = {
+                    "method": "UNSUBSCRIBE",
+                    "params": [f"{symbol.lower()}@kline_1m"],
+                    "id": int(time.time())
+                }
+                await ctx.stream_command_queue.put(unsubscribe_msg)
+
+            except Exception as e:
+                ctx.log_ui(f"⚠️ Kapatma Hatası ({symbol}): {e}", "error")
+
+        ui.notify(f"Tüm Pozisyonlar ({n}) Kapatıldı.", type="positive", position="center")
         # Status Badges
         with ui.row().classes('gap-2'):
             def toggle_bot():
@@ -65,7 +117,7 @@ def create_dashboard(ctx, on_manual_submit, existing_logs=None):
                     with ui.row().classes('w-full justify-between items-center mb-2'):
                         ui.label('⚡ AKTİF POZİSYONLAR').classes('text-sm font-bold text-primary')
                         # Buton işlevsiz olduğu için sadece görüntü
-                        ui.button('TÜMÜNÜ KAPAT', icon='close', color='negative').props('outline size=xs')
+                        ui.button('TÜMÜNÜ KAPAT', icon='close', color='negative', on_click=panic_close_all).props('outline size=xs')
                     positions_container = ui.column().classes('w-full gap-2 overflow-y-auto pr-2')
 
                 # SAĞ: Log Terminali
@@ -156,6 +208,13 @@ def create_dashboard(ctx, on_manual_submit, existing_logs=None):
                             with ui.row().classes('gap-2 text-[10px] text-gray-400'):
                                 ui.label(f"TP: {pos['tp']:.2f}")
                                 ui.label(f"SL: {pos['sl']:.2f}")
+                                remaining_sec = max(0, pos['expiry_time'] - time.time())
+                                mins = int(remaining_sec // 60)
+                                secs = int(remaining_sec % 60)
+                                
+                                # Renkli ve İkonlu Gösterim (Az kalınca kızarır)
+                                time_color = "text-red-400" if remaining_sec < 60 else "text-gray-400"
+                                ui.label(f"⏳ {mins}m {secs}s").classes(f"{time_color} font-mono")
 
             # 3. AI KARARLARI (Canlı Güncelleme)
             # Sadece yeni karar geldiğinde güncellemek daha performanslı olur ama şimdilik sürekli güncelliyoruz

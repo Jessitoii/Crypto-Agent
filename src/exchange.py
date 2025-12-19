@@ -50,7 +50,7 @@ class PaperExchange:
         }
         
         self.balance -= margin
-        return f"🔵 POZİSYON AÇILDI: {symbol.upper()} {side} | Giriş: {price} | TP: {tp_pct} | SL: {sl_pct}", "info"
+        return f"🔵 POZİSYON AÇILDI: {symbol.upper()} {side} | Giriş: {price} | TP: {tp_pct} | SL: {sl_pct} | VM: {validity}", "info"
     
     def check_positions(self, symbol, current_price):
         if symbol not in self.positions:

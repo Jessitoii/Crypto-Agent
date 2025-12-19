@@ -301,7 +301,10 @@ async def process_news(msg, source, ctx):
             "confidence": dec.get('confidence', 0),
             "reason": dec.get('reason', 'N/A'),
             "price": stats.current_price,
-            "news_snippet": msg[:60] + "..."
+            "news_snippet": msg[:60] + "...",
+            "validity_minutes": dec.get('validity_minutes', 0),
+            "tp_pct": dec.get('tp_pct', 0.0),
+            "sl_pct": dec.get('sl_pct', 0.0)
         }
         ctx.ai_decisions.append(decision_record)
         # ----------------------------------------------------------------------
