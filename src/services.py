@@ -316,6 +316,7 @@ async def process_news(msg, source, ctx):
 
         # D) Yapay Zeka Kararı
         volume_24h, funding_rate = await ctx.real_exchange.get_extended_metrics(pair)
+        
         dec = await ctx.brain.analyze_specific(
             msg,
             pair,
@@ -337,7 +338,7 @@ async def process_news(msg, source, ctx):
             "action": "LONG",
             "confidence": 100,
             "reason": "Test",
-            "validity_minutes": 0,
+            "validity_minutes": 1,
             "tp_pct": 1.5,
             "sl_pct": 1.5,
         }"""
@@ -354,7 +355,7 @@ async def process_news(msg, source, ctx):
             "reason": dec.get("reason", "N/A"),
             "price": stats.current_price,
             "news_snippet": msg[:60] + "...",
-            "validity_minutes": dec.get("validity_minutes", 0),
+            "validity": dec.get("validity_minutes", 0),
             "tp_pct": dec.get("tp_pct", 0.0),
             "sl_pct": dec.get("sl_pct", 0.0),
         }
@@ -405,7 +406,7 @@ async def process_news(msg, source, ctx):
             # Çünkü kar etmek için fiyatın Spread + Komisyon kadar gitmesi gerekir.
             try:
                 # Anlık Ticker verisini çek (En güncel Bid/Ask)
-                ticker = await ctx.real_exchange.client.futures_symbol_ticker(
+                ticker = await ctx.real_exchange.client.futures_orderbook_ticker(
                     symbol=pair.upper()
                 )
                 bid = float(ticker["bidPrice"])
@@ -514,7 +515,7 @@ async def websocket_loop(ctx):
                                 # 4. POZİSYON VE PNL KONTROLÜ
                                 # Eğer bu coinde açık işlemimiz varsa, Exchange'e haber ver
                                 if pair in ctx.exchange.positions:
-                                    log, color, closed_sym, pnl, peak_price = (
+                                    log, color, closed_sym, pnl, peak_price, decision_id = (
                                         ctx.exchange.check_positions(pair, price)
                                     )
 
@@ -523,42 +524,14 @@ async def websocket_loop(ctx):
                                         ctx.log_ui(log, color)
                                         log_txt(log)
 
-                                        # İşlem Kapandıysa Temizlik Yap
-                                        if closed_sym:
-                                            # a. Dataset'e kaydet
-                                            ctx.dataset_manager.log_trade_exit(
-                                                closed_sym, pnl, "Closed", peak_price
-                                            )
-
-                                            # b. Telegram'a bildir
-                                            asyncio.create_task(
-                                                send_telegram_alert(ctx, log)
-                                            )
-
-                                            # c. Gerçek borsada kapat (Eğer açıksa)
-                                            if REAL_TRADING_ENABLED:
-                                                asyncio.create_task(
-                                                    ctx.real_exchange.close_position_market(
-                                                        closed_sym
-                                                    )
+                                        if log:
+                                            ctx.log_ui(log, color)
+                                            log_txt(log)
+                                            if closed_sym:
+                                                await handle_closed_position(
+                                                    ctx, closed_sym, pnl, peak_price, decision_id
                                                 )
 
-                                            # d. Abonelikten çık (Trafik yapmasın)
-                                            unsubscribe_msg = {
-                                                "method": "UNSUBSCRIBE",
-                                                "params": [
-                                                    f"{closed_sym.lower()}@kline_1m"
-                                                ],
-                                                "id": int(time.time()),
-                                            }
-                                            await ctx.stream_command_queue.put(
-                                                unsubscribe_msg
-                                            )
-
-                                            # e. Bakiyeyi güncelle
-                                            asyncio.create_task(
-                                                update_system_balance(ctx, last_pnl=pnl)
-                                            )
 
                         except Exception as e:
                             # Tek bir mesajın bozuk olması tüm bağlantıyı koparmamalı
@@ -619,6 +592,8 @@ async def position_monitor_loop(ctx):
                             ctx, closed_sym, pnl, peak, decision_id
                         )
 
+                
+
         except Exception as e:
             print(f"⚠️ Monitor Loop Hatası: {e}")
             await asyncio.sleep(5)
@@ -629,6 +604,7 @@ async def handle_closed_position(ctx, symbol, pnl, peak_price, decision_id=None)
     """Pozisyon kapandığında yapılacak standart işlemler."""
     # 1. Dataset
     ctx.dataset_manager.log_trade_exit(symbol, pnl, "Closed", peak_price)
+    asyncio.create_task(send_telegram_alert(ctx, log))
     if ctx.exchange.history:
         last_trade = ctx.exchange.history[-1]
         # DB'ye yazarken peak_price'ı da ekle
@@ -649,7 +625,9 @@ async def handle_closed_position(ctx, symbol, pnl, peak_price, decision_id=None)
         await ctx.stream_command_queue.put(unsubscribe_msg)
     except:
         pass
-
+    
+    #Bakiyeyi güncelle
+    asyncio.create_task(update_system_balance(ctx, last_pnl=pnl))
 
 async def telegram_loop(ctx):
     ctx.log_ui("Telegram Bağlanıyor...", "info")

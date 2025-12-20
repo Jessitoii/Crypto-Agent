@@ -47,8 +47,8 @@ class PaperExchange:
             'pnl': 0.0,             # Başlangıçta 0
             'start_time': time.time(),
             'validity': validity,
-            'decision_id': decision_id  # Decision ID
-            
+            'expiry_time': time.time() + validity * 60,
+            'decision_id': decision_id
         }
         
         self.balance -= margin
@@ -148,10 +148,11 @@ class PaperExchange:
             'time': time.strftime("%H:%M:%S"),
             'symbol': symbol.upper(),
             'side': pos['side'],
-            'pnl': pnl,
-            'reason': reason,
             'entry': pos['entry'],
-            'exit': pos['current_price'] # Check_positions çalıştığı için bu artık güncel olacak
+            'exit': pos.get('current_price', 0),
+            'pnl': pnl,
+            'peak': peak_price, # <--- BURASI EKLENDİ
+            'reason': reason
         }
         self.history.append(record)
         

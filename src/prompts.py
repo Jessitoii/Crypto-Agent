@@ -109,7 +109,6 @@ GENERATE_SEARCH_QUERY_PROMPT = """
 ACT AS A SKEPTICAL INVESTIGATOR.
 INPUT NEWS: "{news}"
 TARGET: {symbol}
-CURRENT DATE: {current_time_str}
 
 GOAL: Verify Timestamp and Authenticity.
 

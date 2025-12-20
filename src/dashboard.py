@@ -2,6 +2,7 @@ from nicegui import ui
 import asyncio
 import time
 import config  # Panic button için gerekli
+from services import update_system_balance
 
 
 # --- YARDIMCI FONKSİYONLAR ---
@@ -92,6 +93,7 @@ def create_dashboard(ctx, on_manual_submit, existing_logs=None):
                     "id": int(time.time()),
                 }
                 await ctx.stream_command_queue.put(unsubscribe_msg)
+                asyncio.create_task(update_system_balance(ctx, last_pnl=pnl))
             except Exception as e:
                 ctx.log_ui(f"⚠️ Kapatma Hatası ({symbol}): {e}", "error")
         ui.notify(
@@ -171,15 +173,15 @@ def create_dashboard(ctx, on_manual_submit, existing_logs=None):
             ui.label("🧠 YAPAY ZEKA KARAR HAFIZASI (Son 100 Analiz)").classes(
                 "text-lg font-bold mb-4 text-white"
             )
-            with ui.row().classes(
-                "w-full grid grid-cols-12 text-xs font-bold text-gray-500 border-b border-gray-700 pb-2 mb-2"
-            ):
+            with ui.row().classes("w-full grid grid-cols-12 text-[10px] font-bold text-gray-500 border-b border-gray-700 pb-2 mb-2 items-center"):
                 ui.label("SAAT").classes("col-span-1")
                 ui.label("COIN").classes("col-span-1")
                 ui.label("KARAR").classes("col-span-1")
-                ui.label("GÜVEN").classes("col-span-1")
+                ui.label("GÜVEN/VAL").classes("col-span-1") # Güven ve Validity birleşti
                 ui.label("FİYAT").classes("col-span-1")
-                ui.label("SEBEP").classes("col-span-7")
+                ui.label("TP/SL").classes("col-span-1")    # TP ve SL birleşti
+                ui.label("SEBEP").classes("col-span-3")    # Sebep alanı
+                ui.label("HABER").classes("col-span-3")    # Haber alanı
             ai_decisions_container = ui.column().classes(
                 "w-full gap-1 overflow-y-auto h-[75vh]"
             )
@@ -383,37 +385,22 @@ def create_dashboard(ctx, on_manual_submit, existing_logs=None):
                     else:
                         action_col = "text-gray-500"
 
-                    with ui.row().classes(
-                        "w-full grid grid-cols-12 text-xs py-2 border-b border-gray-800 items-center hover:bg-gray-800/50"
-                    ):
-                        ui.label(d["time"]).classes(
-                            "col-span-1 text-gray-400 font-mono"
-                        )
-                        ui.label(d["symbol"]).classes(
-                            "col-span-1 font-bold text-blue-300"
-                        )
-                        ui.label(d["action"]).classes(f"col-span-1 {action_col}")
-                        ui.label(f"%{d['confidence']}").classes(
-                            "col-span-1 text-yellow-500 font-mono"
-                        )
-                        ui.label(f"{d['price']}").classes(
-                            "col-span-1 text-gray-400 font-mono"
-                        )
-                        ui.label(d["tp_pct"]).classes(
-                            "col-span-1 text-gray-400 font-mono"
-                        )
-                        ui.label(d["sl_pct"]).classes(
-                            "col-span-1 text-gray-400 font-mono"
-                        )
-                        ui.label(d["validity"]).classes(
-                            "col-span-1 text-gray-400 font-mono"
-                        )
-                        ui.label(d["news_snippet"]).classes(
-                            "col-span-1 text-gray-400 font-mono"
-                        )
-                        ui.label(d["reason"]).classes(
-                            "col-span-7 text-gray-300 truncate"
-                        ).tooltip(d["reason"])
+                    with ui.row().classes('w-full grid grid-cols-12 text-[11px] py-1 border-b border-gray-800 items-center hover:bg-gray-800/50'):
+                        ui.label(d['time']).classes('col-span-1 text-gray-400 font-mono')
+                        ui.label(d['symbol']).classes('col-span-1 font-bold text-blue-300')
+                        ui.label(d['action']).classes(f'col-span-1 {action_col} font-bold')
+                        
+                        # Güven ve Validity yan yana (Örn: %85 / 15m)
+                        ui.label(f"%{d.get('confidence',0)} / {d.get('validity_minutes',0)}m").classes('col-span-1 text-yellow-500 font-mono')
+                        
+                        ui.label(f"{d.get('price',0)}").classes('col-span-1 text-gray-400 font-mono')
+                        
+                        # TP ve SL yan yana (Örn: 0.8 / 0.5)
+                        ui.label(f"{d.get('tp_pct',0)} / {d.get('sl_pct',0)}").classes('col-span-1 text-blue-200 font-mono')
+                        
+                        # Sebep ve Haber: Kısaltılmış metin + Tooltip
+                        ui.label(d.get('reason', 'N/A')).classes('col-span-3 text-gray-300 truncate').tooltip(d.get('reason'))
+                        ui.label(d.get('news_snippet', 'N/A')).classes('col-span-3 text-gray-500 truncate italic').tooltip(d.get('news_snippet'))
 
             # 4. MARKET
             market_grid.clear()
@@ -444,29 +431,29 @@ def create_dashboard(ctx, on_manual_submit, existing_logs=None):
             history_container.clear()
             with history_container:
                 if not exchange.history:
-                    ui.label("Henüz kapanmış işlem yok.").classes("text-gray-500")
+                    ui.label("Henüz kapanmış işlem yok.").classes('text-gray-500')
                 else:
-                    with ui.row().classes(
-                        "w-full grid grid-cols-5 text-xs font-bold text-gray-500 border-b border-gray-700 pb-1"
-                    ):
-                        ui.label("ZAMAN")
-                        ui.label("SYMBOL")
-                        ui.label("YÖN")
-                        ui.label("PNL")
-                        ui.label("SEBEP")
-
+                    # Başlıkları güncelle: PEAK eklendi, grid 6 sütuna çıktı
+                    with ui.row().classes('w-full grid grid-cols-6 text-xs font-bold text-gray-500 border-b border-gray-700 pb-1'):
+                        ui.label('ZAMAN')
+                        ui.label('SYMBOL')
+                        ui.label('PNL')
+                        ui.label('PEAK SEEN') # <--- YENİ SÜTUN
+                        ui.label('SEBEP')
+                        ui.label('YÖN')
+                    
                     for trade in reversed(exchange.history[-20:]):
-                        col = "text-green-400" if trade["pnl"] > 0 else "text-red-400"
-                        with ui.row().classes(
-                            "w-full grid grid-cols-5 text-xs py-1 border-b border-gray-800 items-center hover:bg-gray-800/50"
-                        ):
-                            ui.label(trade["time"]).classes("text-gray-400")
-                            ui.label(trade["symbol"]).classes("font-bold text-gray-300")
-                            ui.label(trade["side"]).classes(
-                                f"{'text-green-300' if trade['side']=='LONG' else 'text-red-300'}"
-                            )
+                        col = "text-green-400" if trade['pnl'] > 0 else "text-red-400"
+                        with ui.row().classes('w-full grid grid-cols-6 text-xs py-1 border-b border-gray-800 items-center hover:bg-gray-800/50'):
+                            ui.label(trade['time']).classes('text-gray-400')
+                            ui.label(trade['symbol']).classes('font-bold text-gray-300')
                             ui.label(f"${trade['pnl']:.2f}").classes(f"font-bold {col}")
-                            ui.label(trade["reason"]).classes("text-gray-500 truncate")
+                            
+                            # Peak Seen gösterimi
+                            ui.label(f"{trade.get('peak', 0):.4f}").classes('text-yellow-500 font-mono')
+                            
+                            ui.label(trade['reason']).classes('text-gray-500 truncate')
+                            ui.label(trade['side']).classes(f"{'text-green-300' if trade['side']=='LONG' else 'text-red-300'}")
 
         except Exception as e:
             print(f"UI Refresh Error: {e}")

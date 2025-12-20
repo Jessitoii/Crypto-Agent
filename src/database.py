@@ -36,7 +36,10 @@ class MemoryManager:
                 action TEXT,
                 confidence INTEGER,
                 reason TEXT,
+                validity INTEGER,
                 price REAL,
+                tp_pct REAL,
+                sl_pct REAL,
                 news_snippet TEXT,
                 raw_data TEXT
             )
@@ -120,11 +123,11 @@ class MemoryManager:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             cursor.execute('''
-                INSERT INTO decisions (timestamp, symbol, action, confidence, reason, price, news_snippet, raw_data)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO decisions (timestamp, symbol, action, confidence, reason, price, news_snippet, validity, tp_pct, sl_pct, raw_data)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 record['time'], record['symbol'], record['action'], record['confidence'], 
-                record['reason'], record['price'], record['news_snippet'], json.dumps(record)
+                record['reason'], record['price'], record['news_snippet'], record['validity'], record['tp_pct'], record['sl_pct'], json.dumps(record)
             ))
             decision_id = cursor.lastrowid # Bu ID'yi Trade açarken kullanacağız
             conn.commit()
@@ -144,9 +147,16 @@ class MemoryManager:
                 INSERT INTO trades (decision_id, timestamp, symbol, side, entry_price, exit_price, pnl, reason, peak_price)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
-                decision_id, record['time'], record['symbol'], record['side'],
-                record['entry'], record['exit'], record['pnl'], record['reason'], record.get('peak_price', 0)
-            ))
+                    decision_id, 
+                    record.get('time'), 
+                    record.get('symbol'), 
+                    record.get('side'),
+                    record.get('entry'), 
+                    record.get('exit'), 
+                    record.get('pnl'), 
+                    record.get('reason'), 
+                    record.get('peak', 0) # <--- Tutarlılık sağlandı
+                ))
             conn.commit()
             conn.close()
         except Exception as e:

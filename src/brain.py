@@ -156,7 +156,7 @@ class AgentBrain:
     async def detect_symbol(self, news, available_pairs):
         prompt = DETECT_SYMBOL_PROMPT.format(news=news)
         
-        response_text = await self._submit_to_llm(prompt, temperature=0.0, json_mode=True, max_tokens=16, use_system_prompt=False)
+        response_text = await self._submit_to_llm(prompt, temperature=0.0, json_mode=True, use_system_prompt=False)
         
         try:
             res_json = json.loads(response_text)
