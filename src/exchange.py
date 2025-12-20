@@ -143,6 +143,10 @@ class PaperExchange:
         self.balance += pos['margin'] + pnl
         self.total_pnl += pnl
         
+        peak_price = 0.0
+
+        if pos['side'] == 'LONG': peak_price = pos.get('highest_price', pos['entry'])
+        elif pos['side'] == 'SHORT': peak_price = pos.get('lowest_price', pos['entry'])
         # GEÇMİŞ KAYDI (Burası sende vardı ama PnL 0 geliyordu, artık düzelecek)
         record = {
             'time': time.strftime("%H:%M:%S"),
