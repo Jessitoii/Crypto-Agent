@@ -164,3 +164,130 @@ class PaperExchange:
         
         color = "success" if pnl > 0 else "error"
         return f"🏁 KAPANDI: {symbol.upper()} ({reason}) | PnL: {pnl:.2f} USDT", color
+    
+    def open_position_test(self, symbol, side, price, tp_pct, sl_pct, amount_usdt, leverage, validity, app_state, decision_id, now_ts):
+        """Sistem saati yerine dışarıdan gelen now_ts (timestamp) ile işlem açar."""
+        if not app_state.is_running:
+            return "Bot duraklatıldı.", "warning"
+
+        symbol = symbol.lower()
+        if symbol in self.positions:
+            return f"{symbol.upper()} zaten açık!", "warning"
+
+        margin = amount_usdt
+        qty = (amount_usdt * leverage) / price
+        
+        if side == 'LONG':
+            tp = price * (1 + tp_pct/100)
+            sl = price * (1 - sl_pct/100)
+        else:
+            tp = price * (1 - tp_pct/100)
+            sl = price * (1 + sl_pct/100)
+
+        self.positions[symbol] = {
+            'entry': price,
+            'current_price': price,
+            'highest_price': price,
+            'lowest_price': price,
+            'side': side,
+            'margin': margin,
+            'qty': qty,
+            'lev': leverage,
+            'tp': tp,
+            'sl': sl,
+            'pnl': 0.0,
+            'start_time': now_ts,
+            'validity': validity,
+            'expiry_time': now_ts + (validity * 60), # Saniyeye çevrildi
+            'decision_id': decision_id
+        }
+        
+        self.balance -= margin
+        return f"🧪 [TEST] POZİSYON AÇILDI: {symbol.upper()} {side} | Giriş: {price}", "info"
+
+    def check_positions_test(self, symbol, current_price, now_ts):
+        """Sistem saati yerine dışarıdan gelen now_ts ile kontrol yapar."""
+        symbol = symbol.lower()
+        if symbol not in self.positions:
+            return None, None, None, 0.0, 0.0, None
+
+        pos = self.positions[symbol]
+        side = pos['side']
+        entry = pos['entry']
+        
+        # Peak Price Takibi
+        if side == 'LONG':
+            if current_price > pos.get('highest_price', entry):
+                pos['highest_price'] = current_price
+            peak_price = pos['highest_price']
+            pnl = (current_price - entry) * pos['qty']
+        else:
+            if current_price < pos.get('lowest_price', entry):
+                pos['lowest_price'] = current_price
+            peak_price = pos['lowest_price']
+            pnl = (entry - current_price) * pos['qty']
+                
+        pos['pnl'] = pnl
+
+        # --- 3. TRAILING STOP ---
+        roi = 0.0
+        if side == 'LONG':
+            roi = (current_price - entry) / entry * 100
+            if roi > 0.8 and pos['sl'] < entry: pos['sl'] = entry * 1.0015 
+            if roi > 1.5:
+                new_sl = entry * 1.01 
+                if pos['sl'] < new_sl: pos['sl'] = new_sl
+        elif side == 'SHORT':
+            roi = (entry - current_price) / entry * 100
+            if roi > 0.8 and pos['sl'] > entry: pos['sl'] = entry * 0.9985
+            if roi > 1.5:
+                new_sl = entry * 0.99
+                if pos['sl'] > new_sl: pos['sl'] = new_sl
+
+        close_reason = None
+        # TP/SL Kontrolü
+        if side == 'LONG':
+            if current_price >= pos['tp']: close_reason = "TAKE PROFIT 💰"
+            elif current_price <= pos['sl']: close_reason = "STOP LOSS 🛑"
+        else:
+            if current_price <= pos['tp']: close_reason = "TAKE PROFIT 💰"
+            elif current_price >= pos['sl']: close_reason = "STOP LOSS 🛑"
+
+        # Süre Kontrolü (Simülasyon Zamanı ile)
+        if now_ts > pos.get('expiry_time', 0):
+            close_reason = "TIME LIMIT ⏳"
+
+        if close_reason:
+            decision_id = pos.get('decision_id')
+            log_msg, color = self.close_position_test(symbol, close_reason, pnl, now_ts)
+            return log_msg, color, symbol, pnl, peak_price, decision_id
+
+        return None, None, None, 0.0, 0.0, None
+
+    def close_position_test(self, symbol, reason, pnl, now_ts):
+        """Geçmişe kayıt atarken simülasyon saatini kullanır."""
+        symbol = symbol.lower()
+        if symbol not in self.positions: 
+            return "Hata: Pozisyon bulunamadı", "error"
+        
+        pos = self.positions[symbol]
+        self.balance += pos['margin'] + pnl
+        self.total_pnl += pnl
+        
+        # Simülasyon saatini formatla
+        readable_time = time.strftime("%H:%M:%S", time.gmtime(now_ts))
+        
+        record = {
+            'time': readable_time,
+            'symbol': symbol.upper(),
+            'side': pos['side'],
+            'entry': pos['entry'],
+            'exit': pos.get('current_price', 0),
+            'pnl': pnl,
+            'peak': pos.get('highest_price') if pos['side'] == 'LONG' else pos.get('lowest_price'),
+            'reason': reason
+        }
+        self.history.append(record)
+        del self.positions[symbol]
+        
+        return f"🏁 [TEST] KAPANDI: {symbol.upper()} | PnL: {pnl:.2f} USDT", "success"

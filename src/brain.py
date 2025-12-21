@@ -25,7 +25,7 @@ class AgentBrain:
         self.coin_cache = {} # Cache
         self.last_request_time = 0
         # 60s for 1 request per minute limit. 62s for safety.
-        self.MIN_REQUEST_INTERVAL = 62
+        self.MIN_REQUEST_INTERVAL = 0
 
         # 1. OpenRouter (GroqCloud) Setup
         if self.use_groqcloud:
@@ -73,51 +73,114 @@ class AgentBrain:
         
         return cleaned_text.strip()
 
-    async def _submit_to_llm(self, prompt, temperature=0.1, json_mode=True, max_tokens=1024, use_system_prompt=True, reasoning_mode="none"):
+    def _extract_json(self, text):
+        """
+        Modelin gevezeliğini temizler, sadece JSON bloğunu alır.
+        """
+        if not text:
+            return ""
+        
+        try:
+            # 1. Markdown kod bloklarını (```json ... ```) temizle
+            if "```json" in text:
+                text = text.split("```json")[1].split("```")[0]
+            elif "```" in text:
+                text = text.split("```")[1].split("```")[0]
+            
+            # 2. En dıştaki { ve } parantezlerini bul (Metin arasındaki JSON'ı cımbızla çeker)
+            start = text.find('{')
+            end = text.rfind('}')
+            
+            if start != -1 and end != -1:
+                return text[start:end+1]
+            
+            return text.strip()
+        except Exception:
+            return text.strip()
+
+    async def _submit_to_llm(self, prompt, temperature=0.1, json_mode=True, max_tokens=1024, use_system_prompt=True, reasoning_mode="none", compound_custom=None):
         """
         Central LLM Call Function
         """
-        try:
-            messages_payload = []
-            
-            if use_system_prompt:
-                messages_payload.append({"role": "system", "content": LLM_CONFIG['system_prompt']})
-            
-            messages_payload.append({"role": "user", "content": prompt})
+        retries = 0
+        max_retries = 3
+        while retries < max_retries:
+            try:
+                messages_payload = []
+                
+                if use_system_prompt:
+                    messages_payload.append({"role": "system", "content": LLM_CONFIG['system_prompt']})
+                
+                messages_payload.append({"role": "user", "content": prompt})
 
-            # --- A. OPENROUTER / GROQ ---
-            if self.use_groqcloud:
-                completion = await self.client.chat.completions.create(
-                    model=self.model,
-                    messages=messages_payload,
-                    response_format={"type": "json_object"} if json_mode else None,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                    reasoning_effort=reasoning_mode
-                )
-                raw_response = completion.choices[0].message.content
-                cleaned_response = self._clean_thinking(raw_response)
-                return cleaned_response
-            # --- B. OLLAMA ---
-            else:
-                options = {
-                    'temperature': temperature,
-                    'num_ctx': 512, 
-                    'num_predict': 128 if not json_mode else 32
-                }
-                res = await asyncio.to_thread(
-                    ollama.chat,
-                    model=self.ollama_model,
-                    messages=messages_payload,
-                    format='json' if json_mode else '',
-                    options=options,
-                    keep_alive=-1
-                )
-                return res['message']['content']
+                # --- A. OPENROUTER / GROQ ---
+                if self.use_groqcloud:
+                    if compound_custom:
+                        completion = await self.client.chat.completions.create(
+                            model=self.model,
+                            messages=messages_payload,
+                            response_format={"type": "json_object"} if json_mode else None,
+                            temperature=temperature,
+                            compound_custom = compound_custom
+                        )
+                    
+                    else:
+                        completion = await self.client.chat.completions.create(
+                            model=self.model,
+                            messages=messages_payload,
+                            response_format={"type": "json_object"} if json_mode else None,
+                            temperature=temperature,
+                            max_tokens=max_tokens,
+                            reasoning_effort=reasoning_mode
+                        )
+                    raw_response = completion.choices[0].message.content
+                    cleaned_response = self._extract_json(raw_response)
+                    return cleaned_response
+                # --- B. OLLAMA ---
+                else:
+                    options = {
+                        'temperature': temperature,
+                        'num_ctx': 512, 
+                        'num_predict': 128 if not json_mode else 32
+                    }
+                    res = await asyncio.to_thread(
+                        ollama.chat,
+                        model=self.ollama_model,
+                        messages=messages_payload,
+                        format='json' if json_mode else '',
+                        options=options,
+                        keep_alive=-1
+                    )
+                    return res['message']['content']
 
-        except Exception as e:
-            print(f"❌ [ERROR] LLM Request Failed: {e}")
-            return None
+            except Exception as e:
+                    error_msg = str(e)
+                    
+                    # --- 429 RATE LIMIT AYIKLAMA MANTIĞI ---
+                    if "429" in error_msg:
+                        retries += 1
+                        # Regex ile bekleme süresini bul (ms veya s)
+                        # Örn: "Please try again in 690ms" veya "try again in 2s"
+                        ms_match = re.search(r"try again in (\d+)ms", error_msg)
+                        sec_match = re.search(r"try again in (\d+)s", error_msg)
+                        
+                        wait_time = 1.0 # Default 1 saniye
+                        
+                        if ms_match:
+                            wait_time = float(ms_match.group(1)) / 1000.0
+                        elif sec_match:
+                            wait_time = float(sec_match.group(1))
+                        
+                        # Güvenlik payı ekle (0.2 saniye)
+                        wait_time += 0.2
+                        
+                        print(f"⏳ [RATE LIMIT] 429 Hata! {wait_time:.2f}s bekleniyor... (Deneme {retries}/{max_retries})")
+                        await asyncio.sleep(wait_time)
+                        continue # Döngü başına dön ve tekrar dene
+                    
+                    else:
+                        print(f"❌ [ERROR] LLM Request Failed: {e}")
+                        return None
 
     async def analyze_specific(self, news, symbol, price, changes, search_context="", coin_full_name="Unknown", market_cap_str="", rsi_val=0, btc_trend=0, volume_24h="", funding_rate=0):
         # 1. Profile Info
@@ -155,8 +218,12 @@ class AgentBrain:
 
     async def detect_symbol(self, news, available_pairs):
         prompt = DETECT_SYMBOL_PROMPT.format(news=news)
-        
-        response_text = await self._submit_to_llm(prompt, temperature=0.0, json_mode=True, use_system_prompt=False)
+        compound_custom = {
+            "tools":{
+                "enabled_tools":["web_search","code_interpreter","visit_website"]
+            }
+        }
+        response_text = await self._submit_to_llm(prompt, temperature=0.0, json_mode=True, use_system_prompt=False, compound_custom=compound_custom)
         
         try:
             res_json = json.loads(response_text)
@@ -210,3 +277,45 @@ class AgentBrain:
         except Exception as e:
             print(f"Profile Error: {e}")
             return "Unknown"
+
+    async def analyze_specific_no_research(self, news, symbol, price, changes, coin_full_name="Unknown", market_cap_str="", rsi_val=0, btc_trend=0, volume_24h="", funding_rate=0):
+        """İnternet araştırması yapmadan, sadece teknik verilerle karar verir."""
+        await self._wait_for_rate_limit()
+        # Kategori bilgisini cache'den veya statik listeden çek (Araştırma yapma!)
+        sym_clean = symbol.upper().replace('USDT', '')
+        coin_category = coin_categories.get(sym_clean, "Unknown")
+        
+        current_time_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+
+        # Prompt'u research_context olmadan dolduruyoruz
+        prompt = ANALYZE_SPECIFIC_PROMPT.format(
+            symbol=symbol.upper(),
+            coin_full_name=coin_full_name,
+            market_cap_str=market_cap_str,
+            coin_category=coin_category,
+            rsi_val=rsi_val,
+            btc_trend=btc_trend,
+            volume_24h=volume_24h,
+            funding_rate=funding_rate,
+            current_time_str=current_time_str,
+            price=price,
+            change_1m=changes['1m'],
+            change_10m=changes['10m'],
+            change_1h=changes['1h'],
+            change_24h=changes['24h'],
+            news=news,
+            search_context="RESEARCH DISABLED FOR BACKTESTING. DECIDE BASED ON NEWS AND TECH DATA ONLY."
+        )
+
+        compound_custom = {
+            "tools":{
+                "enabled_tools":["web_search","code_interpreter","visit_website"]
+            }
+        }
+        response_text = await self._submit_to_llm(prompt, temperature=0.1, json_mode=True, max_tokens=1024, compound_custom = compound_custom)
+        self.last_request_time = time.time()
+        
+        try:
+            return json.loads(response_text)
+        except Exception:
+            return {"action": "HOLD", "confidence": 0, "reason": "Error parsing simulation JSON"}
