@@ -529,7 +529,7 @@ async def websocket_loop(ctx):
                                             log_txt(log)
                                             if closed_sym:
                                                 await handle_closed_position(
-                                                    ctx, closed_sym, pnl, peak_price, decision_id
+                                                    ctx, closed_sym, pnl, peak_price, log, decision_id
                                                 )
 
 
@@ -589,7 +589,7 @@ async def position_monitor_loop(ctx):
                     log_txt(log)
                     if closed_sym:
                         await handle_closed_position(
-                            ctx, closed_sym, pnl, peak, decision_id
+                            ctx, closed_sym, pnl, peak, log, decision_id
                         )
 
                 
@@ -600,34 +600,38 @@ async def position_monitor_loop(ctx):
 
 
 # Yardımcı Fonksiyon (Kod tekrarını önlemek için)
-async def handle_closed_position(ctx, symbol, pnl, peak_price, decision_id=None):
+async def handle_closed_position(ctx, symbol, pnl, peak_price, log_msg, decision_id=None): # <-- log_msg eklendi
     """Pozisyon kapandığında yapılacak standart işlemler."""
-    # 1. Dataset
-    ctx.dataset_manager.log_trade_exit(symbol, pnl, "Closed", peak_price)
-    asyncio.create_task(send_telegram_alert(ctx, log))
-    if ctx.exchange.history:
-        last_trade = ctx.exchange.history[-1]
-        # DB'ye yazarken peak_price'ı da ekle
-        last_trade["peak_price"] = peak_price
-        ctx.memory.log_trade(last_trade, decision_id)
 
-    # 2. Gerçek Borsa (Real Trading açıksa)
     if REAL_TRADING_ENABLED:
         asyncio.create_task(ctx.real_exchange.close_position_market(symbol))
 
-    # 3. Stream İptal
     try:
-        unsubscribe_msg = {
-            "method": "UNSUBSCRIBE",
-            "params": [f"{symbol.lower()}@kline_1m"],
-            "id": int(time.time()),
-        }
-        await ctx.stream_command_queue.put(unsubscribe_msg)
-    except:
-        pass
-    
-    #Bakiyeyi güncelle
-    asyncio.create_task(update_system_balance(ctx, last_pnl=pnl))
+        # 1. Dataset ve Telegram (HATA BURADAYDI, ARTIK log_msg KULLANIYORUZ)
+        ctx.dataset_manager.log_trade_exit(symbol, pnl, "Closed", peak_price)
+        asyncio.create_task(send_telegram_alert(ctx, log_msg))
+        
+        # 2. SQLite Veritabanı Kaydı (Artık bu satıra ulaşılabilecek)
+        if ctx.exchange.history:
+            last_trade = ctx.exchange.history[-1]
+            last_trade["peak_price"] = peak_price
+            ctx.memory.log_trade(last_trade, decision_id)
+
+        # 4. Stream İptal ve Bakiye Güncelleme
+        try:
+            unsubscribe_msg = {
+                "method": "UNSUBSCRIBE",
+                "params": [f"{symbol.lower()}@kline_1m"],
+                "id": int(time.time()),
+            }
+            await ctx.stream_command_queue.put(unsubscribe_msg)
+        except:
+            pass
+        
+        asyncio.create_task(update_system_balance(ctx, last_pnl=pnl))
+
+    except Exception as e:
+        ctx.log_ui(f"💥 handle_closed_position KRİTİK HATA: {e}", "error")
 
 async def telegram_loop(ctx):
     ctx.log_ui("Telegram Bağlanıyor...", "info")

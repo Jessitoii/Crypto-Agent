@@ -195,13 +195,31 @@ def create_dashboard(ctx, on_manual_submit, existing_logs=None):
 
                 # Raporu Yenileme Butonu
                 async def refresh_report():
-                    # DB'den veriyi çek
                     full_story = ctx.memory.get_full_trade_story()
-
-                    # Tabloyu temizle ve yeniden doldur
+                    
+                    # ROI ve Diğer Hesaplamaları Tabloya Gitmeden Önce Yapalım
+                    for row in full_story:
+                        entry = row.get('entry_price')
+                        exit = row.get('exit_price')
+                        peak = row.get('peak_price')
+                        
+                        if entry and exit:
+                            # İşlem yönüne göre ROI hesapla
+                            if row['action'] == 'LONG':
+                                row['roi'] = f"%{((exit - entry) / entry * 100):.2f}"
+                            else: # SHORT
+                                row['roi'] = f"%{((entry - exit) / entry * 100):.2f}"
+                        else:
+                            row['roi'] = "-"
+                            
+                        # Formatlama (Fiyatların okunabilirliği için)
+                        row['entry_price'] = f"{entry:.4f}" if entry else "-"
+                        row['exit_price'] = f"{exit:.4f}" if exit else "-"
+                        row['peak_price'] = f"{peak:.4f}" if peak else "-"
+                    
                     report_table.rows = full_story
                     report_table.update()
-                    ui.notify("Rapor Güncellendi.", type="info")
+                    ui.notify("Strateji Raporu Güncellendi.", type="info")
 
                 ui.button(
                     "RAPORU YENİLE", icon="refresh", on_click=refresh_report
@@ -209,54 +227,16 @@ def create_dashboard(ctx, on_manual_submit, existing_logs=None):
 
             # Tablo Yapısı
             columns = [
-                {
-                    "name": "time",
-                    "label": "Zaman",
-                    "field": "time",
-                    "sortable": True,
-                    "align": "left",
-                },
-                {
-                    "name": "symbol",
-                    "label": "Coin",
-                    "field": "symbol",
-                    "sortable": True,
-                    "align": "left",
-                },
-                {
-                    "name": "action",
-                    "label": "AI Kararı",
-                    "field": "action",
-                    "align": "center",
-                },
-                {
-                    "name": "confidence",
-                    "label": "Güven",
-                    "field": "confidence",
-                    "sortable": True,
-                    "align": "center",
-                },
-                {
-                    "name": "ai_reason",
-                    "label": "Giriş Mantığı",
-                    "field": "ai_reason",
-                    "align": "left",
-                    "classes": "ellipsis",
-                    "style": "max-width: 300px; overflow: hidden; text-overflow: ellipsis;",
-                },
-                {
-                    "name": "trade_result",
-                    "label": "Sonuç (PnL)",
-                    "field": "pnl",
-                    "sortable": True,
-                    "align": "right",
-                },
-                {
-                    "name": "close_reason",
-                    "label": "Çıkış Sebebi",
-                    "field": "close_reason",
-                    "align": "left",
-                },
+                {"name": "time", "label": "Giriş Saati", "field": "time", "sortable": True, "align": "left"},
+                {"name": "symbol", "label": "Coin", "field": "symbol", "sortable": True, "align": "left"},
+                {"name": "action", "label": "Yön", "field": "action", "align": "center"},
+                {"name": "entry_price", "label": "Giriş Fiyatı", "field": "entry_price", "align": "right"},
+                {"name": "exit_price", "label": "Çıkış Fiyatı", "field": "exit_price", "align": "right"},
+                {"name": "peak_price", "label": "Peak Seen", "field": "peak_price", "align": "right"},
+                {"name": "roi", "label": "ROI (%)", "field": "roi", "align": "right"}, # Hesaplanan alan
+                {"name": "pnl", "label": "Pnl ($)", "field": "pnl", "sortable": True, "align": "right"},
+                {"name": "close_reason", "label": "Çıkış Sebebi", "field": "close_reason", "align": "left"},
+                {"name": "ai_reason", "label": "Giriş Mantığı", "field": "ai_reason", "align": "left"}
             ]
 
             # Tabloyu Oluştur (Veriler refresh butonuna basınca veya otomatik dolacak)

@@ -198,22 +198,19 @@ class MemoryManager:
         print(f"♻️ Hafıza Tazelendi: {len(decisions)} Karar, {len(trades)} İşlem yüklendi.")
 
     def get_full_trade_story(self):
-        """
-        Senin istediğin 'Combined Table' verisini çeker.
-        Hangi Karar -> Hangi İşleme -> Hangi Sonuca yol açtı?
-        """
+        """Hangi Karar -> Hangi İşleme -> Hangi Sonuca yol açtı? (Genişletilmiş)"""
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
-        # LEFT JOIN: İşlem açılmamış kararları da getir
+        # peak_price, entry_price ve exit_price verilerini de çekiyoruz
         query = '''
             SELECT 
                 d.timestamp as time, d.symbol, d.action, d.confidence, d.reason as ai_reason,
-                t.entry_price, t.exit_price, t.pnl, t.reason as close_reason
+                t.entry_price, t.exit_price, t.pnl, t.reason as close_reason, t.peak_price
             FROM decisions d
             LEFT JOIN trades t ON t.decision_id = d.id
-            WHERE d.action IN ('LONG', 'SHORT') -- Sadece aksiyon alınanları gösterelim
+            WHERE d.action IN ('LONG', 'SHORT')
             ORDER BY d.id DESC
             LIMIT 100
         '''
