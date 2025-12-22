@@ -110,11 +110,11 @@ def clean_coin_map(raw_map):
             clean_map[str(key).upper()] = str(value).lower()
     return clean_map
 
-def find_coins(msg, raw_coin_map=None):
+def find_coins(msg, coin_map=None):
     if not msg: return []
     
     # 1. Veriyi standardize et (Sıfır karmaşa)
-    coin_map = clean_coin_map(raw_coin_map)
+    coin_map = clean_coin_map(coin_map)
     detected_symbols = set()
     
     # Mesajı bir kez normalize et (Hız için)
