@@ -94,7 +94,7 @@ async def simulate_process_news(message, ctx, f_log):
             pot_pair = f"{found_symbol.lower()}usdt"
             detected_pairs.append(pot_pair)
 
-    if detected_pairs == "null":
+    if detected_pairs == None:
         return # Hiç coin yoksa geç
 
     # --- 3. ANALİZ DÖNGÜSÜ ---
@@ -238,7 +238,7 @@ async def run_simulation():
     ctx.memory = MockMemory() # DB susturuldu
     ctx.exchange = PaperExchange(1000.0)
     ctx.brain = AgentBrain(
-        use_groqcloud=True,
+        use_groqcloud=False,
         api_key=GROQCLOUD_API_KEY,
         groqcloud_model=GROQCLOUD_MODEL,
     )

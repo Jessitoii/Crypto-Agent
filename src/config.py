@@ -13,7 +13,7 @@ from prompts import (
 load_dotenv()
 
 # --- LLM Configuration ---
-USE_GROQCLOUD = True
+USE_GROQCLOUD = False
 GROQCLOUD_API_KEY = os.getenv('GROQCLOUD_API_KEY')
 GROQCLOUD_MODEL = os.getenv('GROQCLOUD_MODEL', 'google/gemini-2.0-flash-exp:free')
 
@@ -25,8 +25,8 @@ LLM_CONFIG = {
 }
 
 # --- Exchange Configuration ---
-USE_MAINNET = True
-REAL_TRADING_ENABLED = True
+USE_MAINNET = False
+REAL_TRADING_ENABLED = False
     
 if USE_MAINNET:
     API_KEY = os.getenv('BINANCE_API_KEY')
@@ -69,7 +69,7 @@ IGNORE_KEYWORDS = [
     'slides', 'declines', 'drops', 'plummet' # <-- Bunlar başlıkta geçiyorsa genelde özettir
 ]
 DANGEROUS_TICKERS = {
-    'S', 'THE', 'A', 'I', 'IS', 'TO', 'IT', 'BY', 'ON', 'IN', 'AT', 'OF', 
+    'S', 'THE', 'A', 'I', 'IS', 'TO', 'IT', 'BY', 'ON', 'IN', 'AT', 'OF', 'M',
     'ME', 'MY', 'UP', 'DO', 'GO', 'OR', 'IF', 'BE', 'AS', 'WE', 'SO',
     'NEAR', 'ONE', 'SUN', 'GAS', 'POL', 'BOND', 'OM', 'ELF', 'MEME', 'AI', 'MOVE', 'LINK', 'LİNK'
 }
@@ -85,4 +85,5 @@ AMBIGUOUS_COINS = {
     'meme': 'Memecoin',   # Genel "meme" kelimesi
     'beta': 'Beta Finance', # Yazılım betası
     'iot': 'Helium IOT', # IoT teknolojisi
+    'pump': 'Pump.fun',
 }
