@@ -132,6 +132,7 @@ if __name__ == "__main__":
                     "⚠️ Gerçek bakiye çekilemedi veya 0. Varsayılan kullanılıyor.", "warning"
                 )
         else:
+            ctx.real_exchange.connect()
             ctx.log_ui("⚠️ Gerçek İşlem Kapalı (Paper Trading Modu)", "warning")
 
         # 2. Launch Loops

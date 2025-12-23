@@ -13,7 +13,7 @@ from prompts import (
 load_dotenv()
 
 # --- LLM Configuration ---
-USE_GROQCLOUD = False
+USE_GROQCLOUD = True
 GROQCLOUD_API_KEY = os.getenv('GROQCLOUD_API_KEY')
 GROQCLOUD_MODEL = os.getenv('GROQCLOUD_MODEL', 'google/gemini-2.0-flash-exp:free')
 

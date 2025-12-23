@@ -13,13 +13,13 @@ from config import TARGET_CHANNELS, API_ID, API_HASH
 from utils import find_coins, get_top_100_map, coin_categories
 from binance_client import BinanceExecutionEngine
 from main import BotContext
-
+import random
 # --- AYARLAR ---
-LOOKBACK_DAYS = 365
-OBSERVATION_WINDOW = 20
-MIN_ROI_THRESHOLD =1.5
-STOP_LOSS_LIMIT = 0.8
-OUTPUT_FILE = "raw_market_outcomes_v1_5.jsonl"
+LOOKBACK_DAYS = 150
+OBSERVATION_WINDOW = 40
+MIN_ROI_THRESHOLD = 0.5
+STOP_LOSS_LIMIT = 0.5
+OUTPUT_FILE = "hold_data.jsonl"
 CACHE_PATH = "market_cache/klines"
 COIN_MAP = get_top_100_map()
 
@@ -107,14 +107,15 @@ class RAMDataCenter:
                 peak_pct = round(min_l, 2)
                 peak_min = int(future_df['l'].argmin()) + 1
 
-            if not action: return None
+            if action: return None
 
             # 6. Sembol Temizliği (1000PEPE -> PEPE)
             clean_symbol = symbol.replace("USDT", "")
             lookup_symbol = clean_symbol[4:] if clean_symbol.startswith("1000") else clean_symbol
             
             coin_info = COIN_MAP.get(lookup_symbol.lower(), {})
-            
+            funding = await ctx.real_exchange.client.futures_funding_rate(symbol=symbol.upper(), limit=1)
+            funding_rate = float(funding[0]['fundingRate']) if funding else 0.01
             return {
                 "symbol": symbol,
                 "price": round(entry_price, 6),
@@ -128,7 +129,7 @@ class RAMDataCenter:
                     "10m": round(ch_10m, 2),
                     "1h": round(ch_1h, 2)
                 },
-                "action": action,
+                "action": "HOLD",
                 "peak_pct": peak_pct,
                 "peak_min": peak_min,
                 "time": datetime.fromtimestamp(msg_ts).strftime('%H:%M')
@@ -170,9 +171,11 @@ async def main():
             for channel in TARGET_CHANNELS:
                 print(f"\n📡 {channel} Kazılıyor...")
                 # Tüm mesajları bir kerede çek (Hızlı tur)
-                all_msgs = await client.get_messages(channel, offset_date=start_date, limit=None)
+                all_msgs = await client.get_messages(channel, offset_date=start_date, limit=10000)
                 
-                for i, message in enumerate(reversed(all_msgs)):
+                random.shuffle(all_msgs)
+                
+                for i, message in enumerate(all_msgs):
                     processed += 1
                     if not message.text or len(message.text) < 20: continue
                     
