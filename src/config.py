@@ -25,7 +25,7 @@ LLM_CONFIG = {
 }
 
 # --- Exchange Configuration ---
-USE_MAINNET = False
+USE_MAINNET = True
 REAL_TRADING_ENABLED = False
     
 if USE_MAINNET:
