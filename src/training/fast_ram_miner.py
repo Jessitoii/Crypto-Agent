@@ -9,13 +9,14 @@ from telethon import TelegramClient
 import aiofiles
 
 # Proje Modülleri
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import TARGET_CHANNELS, API_ID, API_HASH
 from utils import find_coins, get_top_100_map, coin_categories
 from binance_client import BinanceExecutionEngine
 from main import BotContext
 import random
 # --- AYARLAR ---
-LOOKBACK_DAYS = 150
+LOOKBACK_DAYS = 225
 OBSERVATION_WINDOW = 40
 MIN_ROI_THRESHOLD = 0.5
 STOP_LOSS_LIMIT = 0.5
@@ -168,10 +169,11 @@ async def main():
 
     try:
         async with aiofiles.open(OUTPUT_FILE, mode='a', encoding='utf-8') as f:
+            random.shuffle(TARGET_CHANNELS)
             for channel in TARGET_CHANNELS:
                 print(f"\n📡 {channel} Kazılıyor...")
                 # Tüm mesajları bir kerede çek (Hızlı tur)
-                all_msgs = await client.get_messages(channel, offset_date=start_date, limit=10000)
+                all_msgs = await client.get_messages(channel, offset_date=start_date, limit=20000)
                 
                 random.shuffle(all_msgs)
                 

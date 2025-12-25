@@ -6,19 +6,21 @@ import time
 from datetime import datetime, timedelta, timezone
 from telethon import TelegramClient
 import aiofiles
+import random
 
 # Proje Modülleri
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import TARGET_CHANNELS, API_ID, API_HASH
 from binance_client import BinanceExecutionEngine
 from utils import find_coins, get_top_100_map, coin_categories
 from price_buffer import PriceBuffer
 
 # --- AYARLAR ---
-LOOKBACK_DAYS = 365 
+LOOKBACK_DAYS = 175
 OBSERVATION_WINDOW = 20
-MIN_ROI_THRESHOLD = 3.0 # %3
-STOP_LOSS_LIMIT = 0.8
-OUTPUT_FILE = "raw_market_outcomes.jsonl"
+MIN_ROI_THRESHOLD = 0.5 # %3
+STOP_LOSS_LIMIT = 0.5
+OUTPUT_FILE = "hold_data.jsonl"
 COIN_MAP = get_top_100_map()
 
 async def get_market_outcome(ctx, pair, msg_ts, btc_trend): # btc_trend dışarıdan geliyor
@@ -27,8 +29,7 @@ async def get_market_outcome(ctx, pair, msg_ts, btc_trend): # btc_trend dışar�
         start_ms = int(msg_ts * 1000)
         
         # 1. FUNDING RATE
-        funding = await ctx.real_exchange.client.futures_funding_rate(symbol=pair.upper(), limit=1)
-        funding_rate = float(funding[0]['fundingRate']) if funding else 0.01
+        
 
         # 2. TEKNİK ANALİZ (100 dk geri)
         klines_hist = await ctx.real_exchange.client.futures_klines(
@@ -66,16 +67,26 @@ async def get_market_outcome(ctx, pair, msg_ts, btc_trend): # btc_trend dışar�
 
         data_template = {
             "symbol": pair.upper(), "mcap": f"{mcap/1e9:.2f}B", "cat": category,
-            "rsi": round(rsi_val, 2), "funding": funding_rate, "btc_trend": btc_trend,
+            "rsi": round(rsi_val, 2), "btc_trend": btc_trend,
             "mom": {"1h": round(change_1h, 2)}
         }
 
         if max_high >= MIN_ROI_THRESHOLD and abs(min_low) < STOP_LOSS_LIMIT:
-            return {**data_template, "action": "LONG", "peak_pct": round(max_high, 2), "peak_min": p_high_min}
+            #return {**data_template, "action": "LONG", "peak_pct": round(max_high, 2), "peak_min": p_high_min}
+            return None
         elif abs(min_low) >= MIN_ROI_THRESHOLD and max_high < STOP_LOSS_LIMIT:
-            return {**data_template, "action": "SHORT", "peak_pct": round(min_low, 2), "peak_min": p_low_min}
+            #return {**data_template, "action": "SHORT", "peak_pct": round(min_low, 2), "peak_min": p_low_min}
+            return None
             
-        return None
+        funding = await ctx.real_exchange.client.futures_funding_rate(symbol=pair.upper(), limit=1)
+        funding_rate = float(funding[0]['fundingRate']) if funding else 0.01
+        return {
+            **data_template,
+            "action": "HOLD",
+            "peak_pct": 0,
+            "peak_min": 0,
+            "funding": funding_rate
+        }
     except: return None
 
 async def get_btc_trend(ctx, msg_ts):
@@ -102,15 +113,17 @@ async def main():
 
     try:
         async with aiofiles.open(OUTPUT_FILE, mode='a', encoding='utf-8') as f:
+            random.shuffle(TARGET_CHANNELS)
             for channel in TARGET_CHANNELS:
                 print(f"\n📡 {channel} için mesajlar sayılıyor...")
                 # 1. TUR: İlerleme için sayım
-                all_msgs = await client.get_messages(channel, offset_date=start_date, limit=None)
+                all_msgs = await client.get_messages(channel, offset_date=start_date, limit=20000)
                 chan_total = len(all_msgs)
                 print(f"📈 Kanalda işlenecek {chan_total} mesaj bulundu.")
 
                 # 2. TUR: İşleme
-                for i, message in enumerate(reversed(all_msgs)): # Eskiden yeniye
+                random.shuffle(all_msgs)
+                for i, message in enumerate(all_msgs): # Eskiden yeniye
                     processed += 1
                     percent = ((i + 1) / chan_total) * 100
                     sys.stdout.write(f"\r🚀 %{percent:.2f} | İncelenen: {processed} | Elmas: {found} | Kanal: {channel}")
