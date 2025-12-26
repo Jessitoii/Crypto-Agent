@@ -126,7 +126,7 @@ JSON OUTPUT:
 {{
   "reasoning": "90-130 words. Mechanistic flow analysis. Focus on news-to-price transmission.",
   "causal_link": true/false,
-  "confidence_score": 0-100
+  "confidence": 0-100
 }}"""
     
     params = get_sampling_params(phase, persona)
