@@ -41,13 +41,6 @@ Hard Consistency Rules:
 - VALID_TRADE -> Risk Posture must be Moderate or Aggressive.
 - Momentum / VolatilityExpansion -> Horizon: Immediate or Short.
 - MeanReversion / NewsDecay -> Horizon: Short only.
-
-Constraints:
-45–65 words total.
-Zero hindsight bias.
-No justification based on post-event price action.
-If NO_TRADE, explicitly state why a professional desk stays sidelined.
-
 """
 
 # Config
@@ -119,8 +112,6 @@ OUTPUT STRICT JSON:
     "risk_posture": "Avoid|Moderate|Aggressive",
     "verdict": "VALID_TRADE|NO_TRADE"
 }}"""
-
-    temp_map = {"risk-averse": 0.35, "neutral": 0.45, "aggressive": 0.55}
     
     params = get_sampling_params(phase, persona)
     retries = 0
@@ -212,21 +203,25 @@ async def process_distillation():
                     res["edge_type"] = "None"
                     res["trade_horizon"] = "None"
 
-                instructions = {
-                    "risk-averse": "Acting as a conservative Quant, prioritize capital preservation.",
-                    "neutral": "Acting as a Quant Strategist, perform objective event synthesis.",
-                    "aggressive": "Acting as a high-alpha Quant, seek aggressive entries."
+                execution = {
+                    "tp_pct": None,
+                    "validity_minutes": None
                 }
-
+                if verdict == "VALID_TRADE":
+                    execution = {
+                        "tp_pct": d["peak_pct"],
+                        "validity_minutes": d["peak_pct"]
+                    }
                 entry = {
-                    "instruction": INSTRUCTION.format(persona=persona),
+                    "instruction": INSTRUCTION,
                     "input": f"News: {row['news']}\nContext: {d['symbol']} | {d['category']} | {d['market_cap']}\nMetrics: RSI {d['rsi']} | BTC {d['btc_trend']}% | Funding: {d['funding']}% | Momentum(1 hour): {d['momentum']['1h']}% ",
                     "output": {
                         "analysis": res["reasoning"],
                         "edge": res["edge_type"],
                         "decision": verdict,
                         "horizon": res["trade_horizon"],
-                        "posture": res["risk_posture"]
+                        "posture": res["risk_posture"],
+                        **execution
                     }
                 }
                 await out_f.write(json.dumps(entry, ensure_ascii=False) + "\n")
