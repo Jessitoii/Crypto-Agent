@@ -10,7 +10,7 @@ from google import genai
 from google.genai import types
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config import GROQCLOUD_API_KEY, GEMINI_MODEL, GEMINI_API_KEY
+from config import GROQCLOUD_API_KEY, GEMINI_MODEL, GOOGLE_API_KEY_API_KEY
 
 
 INSTRUCTION = """
@@ -56,7 +56,7 @@ OUTPUT_FILE = "data/synthetic_finetune_data_v2_5.jsonl"
 
 
 client = AsyncGroq(api_key=GROQCLOUD_API_KEY)
-gclient = genai.Client(api_key=GEMINI_API_KEY)
+gclient = genai.Client(api_key=GOOGLE_API_KEY)
 USE_GEMINI = True
 
 def get_sampling_params(phase, persona):
