@@ -10,7 +10,7 @@ from google import genai
 from google.genai import types
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config import GROQCLOUD_API_KEY, GEMINI_MODEL, GOOGLE_API_KEY_API_KEY
+from config import GROQCLOUD_API_KEY, GEMINI_MODEL, GOOGLE_API_KEY
 
 
 INSTRUCTION = """
