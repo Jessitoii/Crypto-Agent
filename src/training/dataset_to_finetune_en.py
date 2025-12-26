@@ -54,20 +54,14 @@ client = AsyncGroq(api_key=GROQCLOUD_API_KEY)
 
 
 def get_sampling_params(phase, persona):
-    if phase == "canonical":
-        return {
-            "temperature": 0.35 if persona == "risk-averse" else 0.45,
-            "top_p": 0.70,
-            "frequency_penalty": 1.05,
-            "presence_penalty": 0.0
-        }
-    else:  # stress
-        return {
-            "temperature": 0.45 if persona != "aggressive" else 0.55,
-            "top_p": 0.80,
-            "frequency_penalty": 1.08,
-            "presence_penalty": 0.15
-        }
+    # Çok daha düşük temperature: Daha kararlı ve daha az "uydurma"
+    base_temp = 0.15 if phase == "canonical" else 0.25
+    return {
+        "temperature": base_temp,
+        "top_p": 0.1, # Top_p'yi de düşür ki en yüksek olasılıklı kelimelere odaklansın
+        "frequency_penalty": 1.1, # Tekrarları engellemek için hafifçe artır
+        "presence_penalty": 0.0
+    }
 
 async def ask_teacher_llm(row, phase="canonical", persona="neutral"):
     d = row['data']
@@ -94,27 +88,14 @@ Pre-Event: RSI: {rsi} | Fund: {funding} | Mom: {momentum} | BTC: {btc_trend}
 Outcome: {direction} | {peak_pct}% | in {peak_min} minutes
 
 OBJECTIVE: Explain WHY the move happened via:
-ANALYSIS OBJECTIVE:
-
-Explain the move by decomposing it into a MARKET REACTION CHAIN:
-
-1) Catalyst Classification  
-Classify the news by its FUNCTION, not importance:
-- Structural (fundamentals / protocol / regulation)
-- Positioning Shock (liquidations, short-covering, crowd imbalance)
-- Sentiment Trigger (attention, headlines, narrative reinforcement)
-- Non-causal (noise coinciding with broader market flow)
-
-2) Market State Interaction  
-Explain how the pre-event state interacted with the news:
-- Did funding, RSI, or momentum act as RESISTANCE or AMPLIFIER?
-- Was the market positioned to absorb the news or vulnerable to repricing?
-
-Metrics are NOT reasons — they only shape transmission efficiency.
-
-3) Transmission Mechanism (Mandatory)
-Explicitly explain:
-News → Which participants reacted → What happened to order flow / liquidity → Why price expanded
+1. Catalyst:
+- Structural = fundamentals / protocol / regulation
+- Positioning Shock = liquidations, short-covering, leverage imbalance
+- Sentiment = attention or narrative without structural change
+- Noise = non-causal coincidence
+2. Friction/Fuel: How metrics (RSI/Fund/Mom) hindered or accelerated transmission. Metrics are NOT reasons; they are environment.
+3. Transmission: Explicitly trace
+News -> which participants reacted -> how liquidity/order flow shifted -> why price expanded
 
 STRICT RULES:
 - causal_link = true ONLY if news initiated the move.
@@ -126,7 +107,7 @@ JSON OUTPUT:
 {{
   "reasoning": "90-130 words. Mechanistic flow analysis. Focus on news-to-price transmission.",
   "causal_link": true/false,
-  "confidence": 0-100
+  "confidence_score": 0-100
 }}"""
     
     params = get_sampling_params(phase, persona)
