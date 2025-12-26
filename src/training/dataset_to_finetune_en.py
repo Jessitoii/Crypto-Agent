@@ -96,18 +96,18 @@ OBJECTIVE: Explain WHY the move happened via:
 2. Friction/Fuel: How metrics (RSI/Fund/Mom) hindered or accelerated transmission. Metrics are NOT reasons; they are environment.
 3. Transmission: Explicitly trace
 News -> which participants reacted -> how liquidity/order flow shifted -> why price expanded
-
+4) Sentiment-Direction Divergence (Anomaly Check): If the news sentiment is BULLISH but the Observed Outcome is SHORT (or vice versa), you MUST explain this discrepancy. Do NOT assume the news caused the move. Instead, identify if this was a "Sell the News" event, "Exit Liquidity" maneuver, or if the move was entirely "Incidental" (driven by broader market flow/BTC beta).
 STRICT RULES:
 - causal_link = true ONLY if news initiated the move.
 - causal_link = false if move is BTC Beta, Technical Drift, or Noise.
 - Respect Scale Inertia: Large caps (100B+) need massive catalysts; otherwise, Causal=False.
 - No vague language (may/might). No trading advice. 
-
+- DIRECTIONAL CONSISTENCY: If your analysis says "traders bought" but the outcome is "SHORT," your analysis is logically broken. In such cases, you must reconsider the news as a "Liquidity Trap" or label the move as "Incidental." - NO PHANTOM BUYERS: Do not claim participants reacted in a direction that contradicts the move magnitude.
 JSON OUTPUT:
 {{
   "reasoning": "90-130 words. Mechanistic flow analysis. Focus on news-to-price transmission.",
   "causal_link": true/false,
-  "confidence_score": 0-100
+  "confidence": 0-100
 }}"""
     
     params = get_sampling_params(phase, persona)
