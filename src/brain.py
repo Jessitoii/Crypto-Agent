@@ -14,7 +14,8 @@ from config import (
     DETECT_SYMBOL_PROMPT, 
     GENERATE_SEARCH_QUERY_PROMPT, 
     GET_COIN_PROFILE_PROMPT,
-    LLM_CONFIG
+    LLM_CONFIG,
+    ANALYZE_GENERAL_PROMPT
 )
 from utils import search_web_sync, coin_categories
 
@@ -22,7 +23,7 @@ class AgentBrain:
     def __init__(self, use_groqcloud=True, api_key=None, groqcloud_model="google/gemini-2.0-flash-exp:free", use_gemini = False, google_api_key = None, gemini_model = "gemma-3-27b-it"):
         self.use_groqcloud = use_groqcloud
         self.model = groqcloud_model
-        self.ollama_model = "LlamaTrader"  # Fallback
+        self.ollama_model = "MinistralTrader"  # Fallback
         self.api_key = api_key
         self.coin_cache = {} # Cache
         self.last_request_time = 0
@@ -47,7 +48,7 @@ class AgentBrain:
             print(f"🧠 [BRAIN] Mode: LOCAL OLLAMA ({self.ollama_model})")
             print("🔥 [SYSTEM] Loading Model to VRAM (Keep-Alive)...")
             try:
-                ollama.chat(model=self.ollama_model, messages=[{'role': 'user', 'content': 'hi'}], keep_alive=-1)
+                ollama.chat(model=self.ollama_model, messages=[{'role': 'user', 'content': 'hi'}], keep_alive=-1, options={'num_ctx': 2048})
                 print("✅ [SYSTEM] Model loaded!")
             except Exception as e:
                 print(f"⚠️ Model load warning: {e}")
@@ -116,8 +117,7 @@ class AgentBrain:
             try:
                 messages_payload = []
                 
-                if use_system_prompt:
-                    messages_payload.append({"role": "system", "content": LLM_CONFIG['system_prompt']})
+                messages_payload.append({"role": "system", "content": LLM_CONFIG['system_prompt']})
                 
                 messages_payload.append({"role": "user", "content": prompt})
 
@@ -160,7 +160,7 @@ class AgentBrain:
                         return res.text
                 else:
                     options = {
-                        'temperature': temperature,
+                        'temperature': temperature
                     }
                     res = await asyncio.to_thread(
                         ollama.chat,
@@ -307,7 +307,7 @@ class AgentBrain:
         current_time_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
         # Prompt'u research_context olmadan dolduruyoruz
-        prompt = ANALYZE_SPECIFIC_PROMPT.format(
+        prompt = ANALYZE_GENERAL_PROMPT.format(
             symbol=symbol.upper(),
             coin_full_name=coin_full_name,
             market_cap_str=market_cap_str,
@@ -323,7 +323,6 @@ class AgentBrain:
             change_1h=changes['1h'],
             change_24h=changes['24h'],
             news=news,
-            search_context="RESEARCH DISABLED FOR BACKTESTING. DECIDE BASED ON NEWS AND TECH DATA ONLY."
         )
 
         compound_custom = {

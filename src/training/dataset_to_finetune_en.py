@@ -95,16 +95,26 @@ STRICT TEMPORAL BLINDNESS RULE:
 - Use ONLY future-tense or conditional language (e.g., 'will force', 'should trigger', 'is likely to').
 - Your reasoning must justify a move *theoretically*, as if it hasn't happened yet.
 
-ASSET MASS VS. ENERGY CALCULATION:
-- Implied USD Move = (Test_Peak_Pct / 100) * Market_Cap.
-- Compare this USD value against the news quality. If a minor NFT launch or tweet is tested against a multi-billion dollar move, the energy is insufficient.
+### STRUCTURAL ENERGY VS. ASSET MASS (THE INERTIA TEST):
+1. **News Flow Capacity:** Evaluate the news type. 
+   - Tier 1 (Structural/Macro): Capacity for $10B+ forced flow.
+   - Tier 2 (Positioning Shock): Capacity for $1B - $10B forced flow.
+   - Tier 3 (Sentiment/Narrative): Capacity for $100M - $1B forced flow.
+   - Tier 4 (Noise/Routine): Capacity for <$100M forced flow.
+
+2. **Resistance Calculation:** - Displacement Resistance = (Market_Cap * 0.01). 
+   - This represents the capital flow typically required to move this asset by 1% based on its mass.
+
+3. **The Feasibility Verdict:** - Compare [News Flow Capacity] against [Displacement Resistance].
+   - If Capacity < Resistance, the news is STRUCTURALLY INCAPABLE of being the primary driver. 
+   - You MUST label such cases as INCIDENTAL (causal_link: false), regardless of the observed price movement.
 
 --------------------------------
 INPUT DATA FOR EVALUATION:
 News: {news}
 Context: {symbol} | {category} | MCAP: {market_cap}
 Pre-Event State (t0): RSI: {rsi} | Funding: {funding} | Momentum: {momentum} | BTC_Trend: {btc_trend}
-Move Under Test: {direction} | {peak_pct}% over {peak_min} mins
+Move Under Test: {direction} | {peak_pct}% over {peak_min} mins 
 
 --------------------------------
 STRICT ANALYSIS ARCHITECTURE:
