@@ -236,3 +236,15 @@ crypto_agent_session.session
 
 # Eğitim Verileri
 *.jsonl
+
+# Model Checkpoints ve Tokenizer dosyaları
+checkpoints2/
+nexus-ai-v2-core/
+nexus-ai-v2-final/
+*.json
+unsloth_compiled_cache/
+
+*.pt 
+nexus-final-encoder/
+nexus-lora-backbone/
+nexus-lora-backbone-final/
